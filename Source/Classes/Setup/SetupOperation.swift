@@ -17,11 +17,11 @@ import CoreData
 	3. Upload all local data to cloud.
 */
 class SetupOperation: Operation {
-	
+
 	var errorBlock: ErrorBlock?
 	let container: NSPersistentContainer
     let uploadAllData: Bool
-	
+
 	/// - Parameters:
 	///   - container: persistent container to get managedObject model from
 	///   - parentContext: context where changed data will be save (recordID's). If it is `nil`, new context will be created from `container` and saved
@@ -29,15 +29,15 @@ class SetupOperation: Operation {
 		self.container = container
         self.uploadAllData = uploadAllData
 	}
-	
+
 	private let queue = OperationQueue()
-	
+
 	override func main() {
 		super.main()
-		
+
 		let childContext = container.newBackgroundContext()
         var operations: [Operation] = []
-        
+
 		// Create CloudCore Zone
 		let createZoneOperation = CreateCloudCoreZoneOperation()
 		createZoneOperation.errorBlock = {
@@ -45,7 +45,7 @@ class SetupOperation: Operation {
 			self.queue.cancelAllOperations()
 		}
 		operations.append(createZoneOperation)
-        
+
 		// Subscribe operation
 		#if !os(watchOS)
 		let subscribeOperation = SubscribeOperation()
@@ -53,21 +53,21 @@ class SetupOperation: Operation {
 		subscribeOperation.addDependency(createZoneOperation)
 		operations.append(subscribeOperation)
 		#endif
-        
+
         if uploadAllData {
             // Upload all local data
             let uploadOperation = PushAllLocalDataOperation(parentContext: childContext, managedObjectModel: container.managedObjectModel)
             uploadOperation.errorBlock = errorBlock
-            
+
             #if !os(watchOS)
             uploadOperation.addDependency(subscribeOperation)
             #endif
             operations.append(uploadOperation)
         }
-        
+
         queue.maxConcurrentOperationCount = 1
 		queue.addOperations(operations, waitUntilFinished: true)
-		
+
         childContext.performAndWait {
             do {
                 // It's safe to save because we instatinated that context in current thread
@@ -77,5 +77,5 @@ class SetupOperation: Operation {
             }
         }
 	}
-	
+
 }

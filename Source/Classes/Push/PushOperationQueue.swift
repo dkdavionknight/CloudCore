@@ -11,11 +11,11 @@ import CoreData
 
 class PushOperationQueue: OperationQueue {
 	var errorBlock: ErrorBlock?
-	
+
 	/// Modify CloudKit database, operations will be created and added to operation queue.
 	func addOperations(recordsToSave: [RecordWithDatabase], recordIDsToDelete: [RecordIDWithDatabase]) {
 		var datasource = [DatabaseModifyDataSource]()
-		
+
 		// Split records to save to databases
 		for recordToSave in recordsToSave {
 			if let modifier = datasource.find(database: recordToSave.database) {
@@ -26,7 +26,7 @@ class PushOperationQueue: OperationQueue {
 				datasource.append(newModifier)
 			}
 		}
-		
+
 		// Split record ids to delete to databases
 		for idToDelete in recordIDsToDelete {
 			if let modifier = datasource.find(database: idToDelete.database) {
@@ -37,18 +37,18 @@ class PushOperationQueue: OperationQueue {
 				datasource.append(newModifier)
 			}
 		}
-		
+
 		// Perform
 		for databaseModifier in datasource {
 			addOperation(recordsToSave: databaseModifier.save, recordIDsToDelete: databaseModifier.delete, database: databaseModifier.database)
 		}
 	}
-	
+
     private func addOperation(recordsToSave: [CKRecord], recordIDsToDelete: [CKRecord.ID], database: CKDatabase) {
 		// Modify CKRecord Operation
 		let modifyOperation = CKModifyRecordsOperation(recordsToSave: recordsToSave, recordIDsToDelete: recordIDsToDelete)
 		modifyOperation.savePolicy = .changedKeys
-		
+
 		modifyOperation.perRecordCompletionBlock = { record, error in
 			if let error = error {
 				self.errorBlock?(error)
@@ -56,18 +56,18 @@ class PushOperationQueue: OperationQueue {
 				self.removeCachedAssets(for: record)
 			}
 		}
-		
+
 		modifyOperation.modifyRecordsCompletionBlock = { _, _, error in
 			if let error = error {
 				self.errorBlock?(error)
 			}
 		}
-		        
+
 		modifyOperation.database = database
 
 		self.addOperation(modifyOperation)
 	}
-	
+
 	/// Remove locally cached assets prepared for uploading at CloudKit
 	private func removeCachedAssets(for record: CKRecord) {
 		for key in record.allKeys() {
@@ -84,7 +84,7 @@ fileprivate class DatabaseModifyDataSource {
 	let database: CKDatabase
 	var save = [CKRecord]()
     var delete = [CKRecord.ID]()
-	
+
 	init(database: CKDatabase) {
 		self.database = database
 	}
@@ -95,7 +95,7 @@ extension Sequence where Iterator.Element == DatabaseModifyDataSource {
 		for element in self {
 			if element.database == database { return element }
 		}
-		
+
 		return nil
 	}
 }

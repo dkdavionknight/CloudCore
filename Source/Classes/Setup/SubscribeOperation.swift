@@ -12,28 +12,28 @@ import CloudKit
 #if !os(watchOS)
 @available(watchOS, unavailable)
 class SubscribeOperation: AsynchronousOperation {
-	
+
 	var errorBlock: ErrorBlock?
-	
+
 	private let queue = OperationQueue()
 
 	override func main() {
 		super.main()
 
 		let container = CloudCore.config.container
-		
+
 		let subcribeToPrivate = self.makeRecordZoneSubscriptionOperation(for: container.privateCloudDatabase, id: CloudCore.config.subscriptionIDForPrivateDB)
 		let fetchPrivateSubscription = makeFetchSubscriptionOperation(for: container.privateCloudDatabase,
 																	   searchForSubscriptionID: CloudCore.config.subscriptionIDForPrivateDB,
 																	   operationToCancelIfSubcriptionExists: subcribeToPrivate)
 		subcribeToPrivate.addDependency(fetchPrivateSubscription)
-		
+
         let subscribeToShared = self.makeRecordZoneSubscriptionOperation(for: container.sharedCloudDatabase, id: CloudCore.config.subscriptionIDForSharedDB)
         let fetchSharedSubscription = makeFetchSubscriptionOperation(for: container.sharedCloudDatabase,
                                                                        searchForSubscriptionID: CloudCore.config.subscriptionIDForSharedDB,
                                                                        operationToCancelIfSubcriptionExists: subscribeToShared)
         subscribeToShared.addDependency(fetchSharedSubscription)
-        
+
 		// Finish operation
 		let finishOperation = BlockOperation {
 			self.state = .finished
@@ -49,11 +49,11 @@ class SubscribeOperation: AsynchronousOperation {
                              fetchSharedSubscription,
                              finishOperation], waitUntilFinished: false)
 	}
-	
+
 	private func makeRecordZoneSubscriptionOperation(for database: CKDatabase, id: String) -> CKModifySubscriptionsOperation {
         let notificationInfo = CKSubscription.NotificationInfo()
 		notificationInfo.shouldSendContentAvailable = true
-		
+
         let subscription = (database == CloudCore.config.container.sharedCloudDatabase) ?CKDatabaseSubscription(subscriptionID: id) :
             CKRecordZoneSubscription(zoneID: CloudCore.config.privateZoneID(), subscriptionID: id)
         subscription.notificationInfo = notificationInfo
@@ -63,16 +63,16 @@ class SubscribeOperation: AsynchronousOperation {
 			if let error = $2 {
 				// Cancellation is not an error
 				if case CKError.operationCancelled = error { return }
-				
+
 				self.errorBlock?(error)
 			}
 		}
-		
+
 		operation.database = database
-		
+
 		return operation
 	}
-	
+
 	private func makeFetchSubscriptionOperation(for database: CKDatabase, searchForSubscriptionID subscriptionID: String, operationToCancelIfSubcriptionExists operationToCancel: CKModifySubscriptionsOperation) -> CKFetchSubscriptionsOperation {
 		let fetchSubscriptions = CKFetchSubscriptionsOperation(subscriptionIDs: [subscriptionID])
 		fetchSubscriptions.database = database
@@ -82,9 +82,9 @@ class SubscribeOperation: AsynchronousOperation {
 				operationToCancel.cancel()
 			}
 		}
-		
+
 		return fetchSubscriptions
 	}
-	
+
 }
 #endif
