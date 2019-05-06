@@ -56,12 +56,14 @@ class PushAllLocalDataOperation: Operation {
                     errorBlock?(error)
                 }
             }
-            
             converter.prepareOperationsFor(inserted: allManagedObjects, updated: Set<NSManagedObject>(), deleted: Set<NSManagedObject>())
-            let recordsToSave = converter.processPendingOperations(in: childContext).recordsToSave
-            pushOperationQueue.addOperations(recordsToSave: recordsToSave, recordIDsToDelete: [RecordIDWithDatabase]())
-            pushOperationQueue.waitUntilAllOperationsAreFinished()
-            
+        }
+
+        let recordsToSave = converter.processPendingOperations(in: childContext).recordsToSave
+        pushOperationQueue.addOperations(recordsToSave: recordsToSave, recordIDsToDelete: [RecordIDWithDatabase]())
+        pushOperationQueue.waitUntilAllOperationsAreFinished()
+
+        childContext.performAndWait {
             do {
                 try childContext.save()
             } catch {
