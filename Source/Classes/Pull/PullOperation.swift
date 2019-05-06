@@ -130,9 +130,9 @@ public class PullOperation: Operation {
 		} catch {
 			errorBlock?(error)
 		}
-		
-        tokens.saveToUserDefaults()
-        
+
+        tokens.saveToContainer(persistentContainer)
+
 		CloudCore.delegate?.didSyncFromCloud()
 	}
 

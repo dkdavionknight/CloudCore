@@ -65,8 +65,8 @@ open class CloudCore {
 	public static var config = CloudCoreConfig()
 
 	/// `Tokens` object, read more at class description. By default variable is loaded from User Defaults.
-	public static var tokens = Tokens.loadFromUserDefaults()
-	
+    public static var tokens: Tokens!
+
 	/// Error and sync actions are reported to that delegate
 	public static weak var delegate: CloudCoreDelegate? {
 		didSet {
@@ -85,17 +85,32 @@ open class CloudCore {
 	/// - Parameters:
 	///   - container: `NSPersistentContainer` that will be used to save data
 	public static func enable(persistentContainer container: NSPersistentContainer) {
-		// Listen for local changes
-		let observer = CoreDataObserver(container: container)
-		observer.delegate = self.delegate
-		observer.start()
-		self.coreDataObserver = observer
-		
+        tokens = Tokens.loadFromContainer(container)
+
+        // Create CloudCore Zone
+        let createZoneOperation = CreateCloudCoreZoneOperation()
+        createZoneOperation.errorBlock = { _ in queue.cancelAllOperations() }
+        queue.addOperation(createZoneOperation)
+
+        let coreDataOperation = BlockOperation()
+        coreDataOperation.addExecutionBlock { [unowned coreDataOperation] in
+            guard !coreDataOperation.isCancelled else { return }
+
+            // Listen for local changes
+            let observer = CoreDataObserver(container: container)
+            observer.delegate = self.delegate
+            observer.start()
+            self.coreDataObserver = observer
+        }
+        coreDataOperation.addDependency(createZoneOperation)
+        queue.addOperation(coreDataOperation)
+
 		// Subscribe (subscription may be outdated/removed)
 		#if !os(watchOS)
 		let subscribeOperation = SubscribeOperation()
 		subscribeOperation.errorBlock = { handle(subscriptionError: $0, container: container) }
-		queue.addOperation(subscribeOperation)
+        subscribeOperation.addDependency(coreDataOperation)
+        queue.addOperation(subscribeOperation)
 		#endif
 
 		// Fetch updated data (e.g. push notifications weren't received)
