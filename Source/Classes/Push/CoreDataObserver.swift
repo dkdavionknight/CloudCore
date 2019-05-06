@@ -222,10 +222,9 @@ class CoreDataObserver {
 
             container.performBackgroundTask { (moc) in
                 let key = "lastPersistentHistoryTokenKey"
-                let settings = UserDefaults.standard
                 var token: NSPersistentHistoryToken? = nil
-                if let data = settings.object(forKey: key) as? Data {
-                     token = NSKeyedUnarchiver.unarchiveObject(with: data) as? NSPersistentHistoryToken
+                if let data = moc.persistentStoreCoordinator!.metadataValue(forKey: key) as? Data {
+                     token = (try? NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSData.self], from: data)) as? NSPersistentHistoryToken
                 }
                 let historyRequest = NSPersistentHistoryChangeRequest.fetchHistory(after: token)
                 do {
@@ -236,9 +235,9 @@ class CoreDataObserver {
                             if process(transaction, in: moc) {
                                 let deleteRequest = NSPersistentHistoryChangeRequest.deleteHistory(before: transaction)
                                 try moc.execute(deleteRequest)
-                                
-                                let data = NSKeyedArchiver.archivedData(withRootObject: transaction.token)
-                                settings.set(data, forKey: key)
+
+                                let data = try NSKeyedArchiver.archivedData(withRootObject: transaction.token, requiringSecureCoding: false)
+                                moc.persistentStoreCoordinator!.setMetadataValue(data, forKey: key)
                             } else {
                                 break
                             }
@@ -248,7 +247,7 @@ class CoreDataObserver {
                     let nserror = error as NSError
                     switch nserror.code {
                     case NSPersistentHistoryTokenExpiredError:
-                        settings.set(nil, forKey: key)
+                        moc.persistentStoreCoordinator!.setMetadataValue(nil, forKey: key)
                     default:
                         fatalError("Unresolved error \(nserror), \(nserror.userInfo)")
                     }
