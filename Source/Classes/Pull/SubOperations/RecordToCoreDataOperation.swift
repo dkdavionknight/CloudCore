@@ -19,7 +19,7 @@ public class RecordToCoreDataOperation: AsynchronousOperation {
 	let record: CKRecord
 	var errorBlock: ErrorBlock?
     var missingObjectsPerEntities = MissingReferences()
-	
+
     /// - Parameters:
     ///   - parentContext: operation will be safely performed in that context, **operation doesn't save that context** you need to do it manually
     ///   - record: record that will be converted to `NSManagedObject`
@@ -41,7 +41,7 @@ public class RecordToCoreDataOperation: AsynchronousOperation {
             } catch {
                 self.errorBlock?(error)
             }
-            
+
             self.state = .finished
         }
 	}

@@ -48,9 +48,9 @@ import CloudKit
 	You can also check for updated data at CloudKit **manually** (e.g. push notifications are not working). Use for that `CloudCore.pull(to:error:completion:)`
 */
 open class CloudCore {
-	
+
 	// MARK: - Properties
-	
+
 	private(set) static var coreDataObserver: CoreDataObserver?
     public static var isOnline: Bool {
         get {
@@ -60,10 +60,10 @@ open class CloudCore {
             coreDataObserver?.isOnline = newValue
         }
     }
-    
+
 	/// CloudCore configuration, it's recommended to set up before calling any of CloudCore methods. You can read more at `CloudCoreConfig` struct description
 	public static var config = CloudCoreConfig()
-	
+
 	/// `Tokens` object, read more at class description. By default variable is loaded from User Defaults.
 	public static var tokens = Tokens.loadFromUserDefaults()
 	
@@ -73,13 +73,13 @@ open class CloudCore {
 			coreDataObserver?.delegate = delegate
 		}
 	}
-	
+
 	public typealias NotificationUserInfo = [AnyHashable : Any]
-	
+
 	static private let queue = OperationQueue()
-	
+
 	// MARK: - Methods
-	
+
 	/// Enable CloudKit and Core Data synchronization
 	///
 	/// - Parameters:
@@ -97,32 +97,32 @@ open class CloudCore {
 		subscribeOperation.errorBlock = { handle(subscriptionError: $0, container: container) }
 		queue.addOperation(subscribeOperation)
 		#endif
-		
+
 		// Fetch updated data (e.g. push notifications weren't received)
         let updateFromCloudOperation = PullOperation(persistentContainer: container)
 		updateFromCloudOperation.errorBlock = {
 			self.delegate?.error(error: $0, module: .some(.pullFromCloud))
 		}
-		
+
 		#if !os(watchOS)
 		updateFromCloudOperation.addDependency(subscribeOperation)
 		#endif
-			
+
 		queue.addOperation(updateFromCloudOperation)
 	}
-	
+
 	/// Disables synchronization (push notifications won't be sent also)
 	public static func disable() {
 		queue.cancelAllOperations()
 
 		coreDataObserver?.stop()
 		coreDataObserver = nil
-		
+
 		// FIXME: unsubscribe
 	}
-	
+
 	// MARK: Fetchers
-	
+
 	/** Fetch changes from one CloudKit database and save it to CoreData from `didReceiveRemoteNotification` method.
 
 	Don't forget to check notification's UserInfo by calling `isCloudCoreNotification(withUserInfo:)`. If incorrect user info is provided `PullResult.noData` will be returned at completion block.
@@ -135,18 +135,18 @@ open class CloudCore {
 	*/
 	public static func pull(using userInfo: NotificationUserInfo, to container: NSPersistentContainer, error: ErrorBlock?, completion: @escaping (_ fetchResult: PullResult) -> Void) {
         let notification = CKNotification(fromRemoteNotificationDictionary: userInfo)
-        
+
 		guard let cloudDatabase = self.database(for: notification) else {
 			completion(.noData)
 			return
 		}
-        
+
 		DispatchQueue.global(qos: .utility).async {
 			let errorProxy = ErrorBlockProxy(destination: error)
 			let operation = PullOperation(from: [cloudDatabase], persistentContainer: container)
 			operation.errorBlock = { errorProxy.send(error: $0) }
 			operation.start()
-			
+
 			if errorProxy.wasError {
 				completion(PullResult.failed)
 			} else {
@@ -169,7 +169,7 @@ open class CloudCore {
 
 		queue.addOperation(operation)
 	}
-	
+
 	/** Check if notification is CloudKit notification containing CloudCore data
 
 	 - Parameter userInfo: userInfo of notification
@@ -179,10 +179,10 @@ open class CloudCore {
         let notification = CKNotification(fromRemoteNotificationDictionary: userInfo)
 		return (database(for: notification) != nil)
 	}
-	
+
 	static func database(for notification: CKNotification) -> CKDatabase? {
 		guard let id = notification.subscriptionID else { return nil }
-		
+
 		switch id {
 		case config.subscriptionIDForPrivateDB: return config.container.privateCloudDatabase
 		case config.subscriptionIDForSharedDB: return config.container.sharedCloudDatabase
@@ -196,21 +196,21 @@ open class CloudCore {
 			delegate?.error(error: subscriptionError, module: nil)
 			return
 		}
-		
+
 		// Try to find "Zone Not Found" in partial errors
 		for subError in partialErrorValues {
 			guard let subError = subError as? CKError else { continue }
-			
+
 			if case .zoneNotFound = subError.code {
 				// Zone wasn't found, we need to create it
 				self.queue.cancelAllOperations()
                 let setupOperation = SetupOperation(container: container, uploadAllData: !(coreDataObserver?.usePersistentHistoryForPush)!)
 				self.queue.addOperation(setupOperation)
-				
+
 				return
 			}
 		}
-		
+
 		delegate?.error(error: subscriptionError, module: nil)
 	}
 

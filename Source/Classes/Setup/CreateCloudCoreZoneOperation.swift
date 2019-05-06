@@ -10,10 +10,10 @@ import Foundation
 import CloudKit
 
 class CreateCloudCoreZoneOperation: AsynchronousOperation {
-	
+
 	var errorBlock: ErrorBlock?
 	private var createZoneOperation: CKModifyRecordZonesOperation?
-	
+
 	override func main() {
 		super.main()
 
@@ -23,12 +23,12 @@ class CreateCloudCoreZoneOperation: AsynchronousOperation {
 			if let error = $2 {
 				self.errorBlock?(error)
 			}
-			
+
 			self.state = .finished
 		}
-		
+
 		CloudCore.config.container.privateCloudDatabase.add(recordZoneOperation)
 		self.createZoneOperation = recordZoneOperation
 	}
-	
+
 }
