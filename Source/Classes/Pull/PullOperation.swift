@@ -173,7 +173,13 @@ public class PullOperation: Operation {
         recordZoneChangesOperation.completionBlock = {
             self.processMissingReferences(context: context)
         }
-		
+
+        recordZoneChangesOperation.resetContext = {
+            context.performAndWait {
+                context.reset()
+            }
+        }
+
 		queue.addOperation(recordZoneChangesOperation)
 	}
 

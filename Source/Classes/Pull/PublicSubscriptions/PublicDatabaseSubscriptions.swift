@@ -42,8 +42,10 @@ public class PublicDatabaseSubscriptions {
 
             completion?(subscription.subscriptionID, error)
         }
-        
-        operation.timeoutIntervalForResource = 20
+
+        let configuration = CKOperation.Configuration()
+        configuration.timeoutIntervalForResource = 20
+        operation.configuration = configuration
         CKContainer.default().publicCloudDatabase.add(operation)
     }
     
@@ -62,8 +64,10 @@ public class PublicDatabaseSubscriptions {
             
             completion?(error)
         }
-        
-        operation.timeoutIntervalForResource = 20
+
+        let configuration = CKOperation.Configuration()
+        configuration.timeoutIntervalForResource = 20
+        operation.configuration = configuration
         CKContainer.default().publicCloudDatabase.add(operation)
     }
     
