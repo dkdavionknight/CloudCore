@@ -49,7 +49,7 @@ public class PullOperation: Operation {
 
 	/// Performs the receiver’s non-concurrent task.
 	override public func main() {
-		if self.isCancelled { return }
+		if isCancelled { return }
 
 		CloudCore.delegate?.willSyncFromCloud()
 
@@ -119,17 +119,20 @@ public class PullOperation: Operation {
 
                     self.tokens.tokensByDatabaseScope[database.databaseScope.rawValue] = changeToken
                 }
-                self.queue.addOperation(databaseChangeOp)
+                queue.addOperation(databaseChangeOp)
             }
         }
 
-		self.queue.waitUntilAllOperationsAreFinished()
+		queue.waitUntilAllOperationsAreFinished()
 
-		do {
-			try backgroundContext.save()
-		} catch {
-			errorBlock?(error)
-		}
+        backgroundContext.performAndWait {
+            do {
+                processMissingReferences(context: backgroundContext)
+                try backgroundContext.save()
+            } catch {
+                errorBlock?(error)
+            }
+        }
 
         tokens.saveToContainer(persistentContainer)
 
@@ -143,14 +146,14 @@ public class PullOperation: Operation {
         convertOperation.completionBlock = {
             self.objectsWithMissingReferences.append(convertOperation.missingObjectsPerEntities)
         }
-        self.queue.addOperation(convertOperation)
+        queue.addOperation(convertOperation)
     }
 
     private func addDeleteRecordOperation(recordID: CKRecord.ID, context: NSManagedObjectContext) {
         // Delete NSManagedObject with specified recordID Operation
         let deleteOperation = DeleteFromCoreDataOperation(parentContext: context, recordID: recordID)
         deleteOperation.errorBlock = { self.errorBlock?($0) }
-        self.queue.addOperation(deleteOperation)
+        queue.addOperation(deleteOperation)
     }
 
     private func addRecordZoneChangesOperation(recordZoneIDs: [CKRecordZone.ID], database: CKDatabase, context: NSManagedObjectContext) {
@@ -170,11 +173,7 @@ public class PullOperation: Operation {
 			self.handle(recordZoneChangesError: error, in: zoneID, database: database, context: context)
 		}
 
-        recordZoneChangesOperation.completionBlock = {
-            self.processMissingReferences(context: context)
-        }
-
-        recordZoneChangesOperation.resetContext = {
+        recordZoneChangesOperation.reset = {
             context.performAndWait {
                 context.reset()
             }

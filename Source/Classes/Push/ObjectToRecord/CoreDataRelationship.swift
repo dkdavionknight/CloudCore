@@ -29,7 +29,9 @@ class CoreDataRelationship {
 
 	private static func relationshipDescription(for lookupName: String, in entity: NSEntityDescription) -> NSRelationshipDescription? {
 		for (name, description) in entity.relationshipsByName {
-			if lookupName == name { return description }
+			if lookupName == name {
+                return description.isToMany ? nil : description
+            }
 		}
 
 		return nil

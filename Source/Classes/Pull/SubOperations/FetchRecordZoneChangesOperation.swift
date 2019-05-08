@@ -18,7 +18,7 @@ class FetchRecordZoneChangesOperation: Operation {
     var errorBlock: ((CKRecordZone.ID, Error) -> Void)?
     var recordChangedBlock: ((CKRecord) -> Void)?
     var recordWithIDWasDeletedBlock: ((CKRecord.ID) -> Void)?
-    var resetContext: (() -> Void)?
+    var reset: (() -> Void)?
 
     private let configurationsByRecordZoneID: [CKRecordZone.ID: CKFetchRecordZoneChangesOperation.ZoneConfiguration]
     private let fetchQueue = OperationQueue()
@@ -79,7 +79,7 @@ class FetchRecordZoneChangesOperation: Operation {
             if let ckError = error as? CKError,
                 ckError.code == .networkFailure
             {
-                self.resetContext?()
+                self.reset?()
                 let retryOperation = self.makeFetchOperation(configurationsByRecordZoneID: configurationsByRecordZoneID)
                 self.fetchQueue.addOperation(retryOperation)
             }
