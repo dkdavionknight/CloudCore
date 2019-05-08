@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
     :tag => s.version.to_s
   }
 
-  s.ios.deployment_target = '10.0'
+  s.ios.deployment_target = '12.0'
   s.osx.deployment_target = '10.12'
   s.tvos.deployment_target = '10.0'
   s.watchos.deployment_target = '3.0'
@@ -19,7 +19,7 @@ Pod::Spec.new do |s|
 
   s.ios.frameworks = 'Foundation', 'CloudKit', 'CoreData'
   s.osx.frameworks = 'Foundation', 'CloudKit', 'CoreData'
+  s.swift_version = '4.2'
 
-  s.pod_target_xcconfig = { 'SWIFT_VERSION' => '4.2' }
   s.documentation_url = 'http://cocoadocs.org/docsets/CloudCore/'
 end
