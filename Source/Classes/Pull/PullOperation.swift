@@ -124,6 +124,7 @@ public class PullOperation: Operation {
         }
 
 		queue.waitUntilAllOperationsAreFinished()
+        print("### queue.waitUntilAllOperationsAreFinished")
 
         backgroundContext.performAndWait {
             do {
@@ -143,10 +144,16 @@ public class PullOperation: Operation {
         // Convert and write CKRecord To NSManagedObject Operation
         let convertOperation = RecordToCoreDataOperation(parentContext: context, record: record)
         convertOperation.errorBlock = { self.errorBlock?($0) }
-        convertOperation.completionBlock = {
+        queue.addOperation(convertOperation)
+
+        let operation = BlockOperation()
+        operation.addExecutionBlock {
+            guard !operation.isCancelled else { return }
+            print("### objectsWithMissingReferences: \(convertOperation.missingObjectsPerEntities)")
             self.objectsWithMissingReferences.append(convertOperation.missingObjectsPerEntities)
         }
-        queue.addOperation(convertOperation)
+        operation.addDependency(convertOperation)
+        queue.addOperation(operation)
     }
 
     private func addDeleteRecordOperation(recordID: CKRecord.ID, context: NSManagedObjectContext) {
@@ -174,6 +181,9 @@ public class PullOperation: Operation {
 		}
 
         recordZoneChangesOperation.reset = {
+            print("### reset")
+            self.queue.cancelAllOperations()
+            self.objectsWithMissingReferences = [MissingReferences]()
             context.performAndWait {
                 context.reset()
             }

@@ -56,12 +56,15 @@ class FetchRecordZoneChangesOperation: Operation {
         fetchOperation.fetchAllChanges = false
 
         fetchOperation.recordChangedBlock = {
+            print("### recordChangedBlock: \($0)")
             self.recordChangedBlock?($0)
         }
         fetchOperation.recordWithIDWasDeletedBlock = { recordID, _ in
+            print("### recordWithIDWasDeletedBlock: \(recordID)")
             self.recordWithIDWasDeletedBlock?(recordID)
         }
         fetchOperation.recordZoneFetchCompletionBlock = { zoneId, serverChangeToken, clientChangeTokenData, isMore, error in
+            print("### recordZoneFetchCompletionBlock: \(zoneId), \(String(describing: serverChangeToken)), \(String(describing: clientChangeTokenData)), \(isMore), \(String(describing: error))")
             self.tokens.tokensByRecordZoneID[zoneId] = serverChangeToken
 
             if let error = error {
@@ -73,7 +76,11 @@ class FetchRecordZoneChangesOperation: Operation {
                 self.fetchQueue.addOperation(moreOperation)
             }
         }
+        fetchOperation.recordZoneChangeTokensUpdatedBlock = {
+            print("### recordZoneChangeTokensUpdatedBlock: \($0), \(String(describing: $1)), \(String(describing: $2))")
+        }
         fetchOperation.fetchRecordZoneChangesCompletionBlock = {
+            print("### fetchRecordZoneChangesCompletionBlock: \(String(describing: $0))")
             guard let error = $0 else { return }
 
             if let ckError = error as? CKError,
@@ -82,9 +89,6 @@ class FetchRecordZoneChangesOperation: Operation {
                 self.reset?()
                 let retryOperation = self.makeFetchOperation(configurationsByRecordZoneID: configurationsByRecordZoneID)
                 self.fetchQueue.addOperation(retryOperation)
-            }
-            else {
-                print("fetchRecordZoneChangesCompletionBlock: \(error)")
             }
         }
 
