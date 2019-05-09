@@ -76,6 +76,8 @@ public class RecordToCoreDataOperation: Operation {
     ///   - entityName: entity name of `object`
     ///   - recordDataAttributeName: attribute name containing recordData
     private func fill(object: NSManagedObject, entityName: String, serviceAttributeNames: ServiceAttributeNames, context: NSManagedObjectContext) throws {
+        var notFoundRecordNamesForAttribute = [AttributeName: [RecordName]]()
+
         for key in record.allKeys() {
             let recordValue = record.value(forKey: key)
 
@@ -95,8 +97,12 @@ public class RecordToCoreDataOperation: Operation {
                 if object.entity.attributesByName[key] != nil || object.entity.relationshipsByName[key] != nil {
                     object.setValue(coreDataValue, forKey: key)
                 }
-                missingObjectsPerEntities[object] = ckAttribute.notFoundRecordNamesForAttribute
+                notFoundRecordNamesForAttribute.merge(ckAttribute.notFoundRecordNamesForAttribute) { current, _ in current }
             }
+        }
+
+        if !notFoundRecordNamesForAttribute.isEmpty {
+            missingObjectsPerEntities[object] = notFoundRecordNamesForAttribute
         }
 
         // Set system headers
