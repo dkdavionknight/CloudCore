@@ -113,14 +113,16 @@ open class CloudCore {
         queue.addOperation(subscribeOperation)
 		#endif
 
-		// Fetch updated data (e.g. push notifications weren't received)
-        let updateFromCloudOperation = makePullOperation(persistentContainer: container)
+        if !isQueueContainsPullOperation() {
+            // Fetch updated data (e.g. push notifications weren't received)
+            let updateFromCloudOperation = makePullOperation(persistentContainer: container)
 
-		#if !os(watchOS)
-		updateFromCloudOperation.addDependency(subscribeOperation)
-		#endif
+            #if !os(watchOS)
+            updateFromCloudOperation.addDependency(subscribeOperation)
+            #endif
 
-		queue.addOperation(updateFromCloudOperation)
+            queue.addOperation(updateFromCloudOperation)
+        }
 	}
 
 	/// Disables synchronization (push notifications won't be sent also)
@@ -146,25 +148,24 @@ open class CloudCore {
 		- completion: `PullResult` enumeration with results of operation
 	*/
 	public static func pull(using userInfo: NotificationUserInfo, to container: NSPersistentContainer, error: ErrorBlock?, completion: @escaping (_ fetchResult: PullResult) -> Void) {
+        print("### pull \(String(describing: userInfo))")
 		guard let notification = CKNotification(fromRemoteNotificationDictionary: userInfo),
-            let cloudDatabase = self.database(for: notification)
+            let _ = self.database(for: notification)
             else {
                 completion(.noData)
                 return
             }
 
 		DispatchQueue.global(qos: .utility).async {
-			let errorProxy = ErrorBlockProxy(destination: error)
-			let operation = PullOperation(from: [cloudDatabase], persistentContainer: container)
-			operation.errorBlock = { errorProxy.send(error: $0) }
-            operation.purgeBlock = { purge(container: container) }
-			operation.start()
-
-			if errorProxy.wasError {
-				completion(PullResult.failed)
-			} else {
-				completion(PullResult.newData)
-			}
+            if isQueueContainsPullOperation() {
+                print("### PullOperation already running")
+            }
+            else {
+                let operation = makePullOperation(persistentContainer: container)
+                queue.addOperation(operation)
+                print("### PullOperation started from notification")
+            }
+            completion(PullResult.newData)
 		}
 	}
 
@@ -176,6 +177,7 @@ open class CloudCore {
 		- completion: `PullResult` enumeration with results of operation
 	*/
 	public static func pull(to container: NSPersistentContainer, error: ErrorBlock?, completion: (() -> Void)?) {
+        print("### pull(to container: NSPersistentContainer, error: ErrorBlock?, completion: (() -> Void)?)")
         let operation = makePullOperation(persistentContainer: container)
 		operation.completionBlock = completion
 		queue.addOperation(operation)
@@ -237,6 +239,7 @@ open class CloudCore {
         case .userDeletedZone, .changeTokenExpired:
             queue.cancelAllOperations()
             purge(container: container)
+            print("### makePullOperation \(String(describing: cloudError))")
             let operation = makePullOperation(persistentContainer: container)
             queue.addOperation(operation)
         default: delegate?.error(error: cloudError, module: .some(.pullFromCloud))
@@ -254,6 +257,10 @@ open class CloudCore {
         operation.errorBlock = { handle(pullError: $0, container: container) }
         operation.purgeBlock = { purge(container: container) }
         return operation
+    }
+
+    static private func isQueueContainsPullOperation() -> Bool {
+        return queue.operations.contains(where: { $0 is PullOperation })
     }
 
 }
