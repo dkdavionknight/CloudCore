@@ -15,7 +15,7 @@ class FetchRecordZoneChangesOperation: Operation {
     let database: CKDatabase
     //
 
-    var errorBlock: ((CKRecordZone.ID, Error) -> Void)?
+    var errorBlock: ((Error) -> Void)?
     var recordChangedBlock: ((CKRecord) -> Void)?
     var recordWithIDWasDeletedBlock: ((CKRecord.ID) -> Void)?
     var reset: (() -> Void)?
@@ -73,7 +73,7 @@ class FetchRecordZoneChangesOperation: Operation {
             self.isMoreComing = isMoreComing
 
             if let error = error {
-                self.errorBlock?(zoneId, error)
+                self.errorBlock?(error)
             }
         }
         fetchOperation.recordZoneChangeTokensUpdatedBlock = {
@@ -90,6 +90,9 @@ class FetchRecordZoneChangesOperation: Operation {
                 self.reset?()
                 let retryOperation = self.makeFetchOperation(configurationsByRecordZoneID: configurationsByRecordZoneID)
                 self.queue.addOperation(retryOperation)
+            }
+            else {
+                self.errorBlock?(error)
             }
         }
 

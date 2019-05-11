@@ -98,9 +98,9 @@ open class CloudCore {
 
             // Listen for local changes
             let observer = CoreDataObserver(container: container)
-            observer.delegate = self.delegate
+            observer.delegate = delegate
             observer.start()
-            self.coreDataObserver = observer
+            coreDataObserver = observer
         }
         coreDataOperation.addDependency(createZoneOperation)
         queue.addOperation(coreDataOperation)
@@ -114,10 +114,7 @@ open class CloudCore {
 		#endif
 
 		// Fetch updated data (e.g. push notifications weren't received)
-        let updateFromCloudOperation = PullOperation(persistentContainer: container)
-		updateFromCloudOperation.errorBlock = {
-			self.delegate?.error(error: $0, module: .some(.pullFromCloud))
-		}
+        let updateFromCloudOperation = makePullOperation(persistentContainer: container)
 
 		#if !os(watchOS)
 		updateFromCloudOperation.addDependency(subscribeOperation)
@@ -160,6 +157,7 @@ open class CloudCore {
 			let errorProxy = ErrorBlockProxy(destination: error)
 			let operation = PullOperation(from: [cloudDatabase], persistentContainer: container)
 			operation.errorBlock = { errorProxy.send(error: $0) }
+            operation.purgeBlock = { purge(container: container) }
 			operation.start()
 
 			if errorProxy.wasError {
@@ -178,10 +176,8 @@ open class CloudCore {
 		- completion: `PullResult` enumeration with results of operation
 	*/
 	public static func pull(to container: NSPersistentContainer, error: ErrorBlock?, completion: (() -> Void)?) {
-        let operation = PullOperation(persistentContainer: container)
-		operation.errorBlock = error
+        let operation = makePullOperation(persistentContainer: container)
 		operation.completionBlock = completion
-
 		queue.addOperation(operation)
 	}
 
@@ -228,5 +224,36 @@ open class CloudCore {
 
 		delegate?.error(error: subscriptionError, module: nil)
 	}
+
+    static private func handle(pullError: Error, container: NSPersistentContainer) {
+        guard let cloudError = pullError as? CKError else {
+            delegate?.error(error: pullError, module: .some(.pullFromCloud))
+            return
+        }
+
+        switch cloudError.code {
+        // User purged cloud database, we need to delete local cache (according Apple Guidelines)
+        // Or our token is expired, we need to refetch everything again
+        case .userDeletedZone, .changeTokenExpired:
+            queue.cancelAllOperations()
+            purge(container: container)
+            let operation = makePullOperation(persistentContainer: container)
+            queue.addOperation(operation)
+        default: delegate?.error(error: cloudError, module: .some(.pullFromCloud))
+        }
+    }
+
+    static private func purge(container: NSPersistentContainer) {
+        print("### purge")
+        delegate?.purge(container: container)
+        tokens = Tokens()
+    }
+
+    static private func makePullOperation(persistentContainer container: NSPersistentContainer) -> PullOperation {
+        let operation = PullOperation(persistentContainer: container)
+        operation.errorBlock = { handle(pullError: $0, container: container) }
+        operation.purgeBlock = { purge(container: container) }
+        return operation
+    }
 
 }

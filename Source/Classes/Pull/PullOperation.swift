@@ -25,6 +25,7 @@ public class PullOperation: Operation {
 
 	/// Called every time if error occurs
 	public var errorBlock: ErrorBlock?
+    public var purgeBlock: (() -> Void)?
 
 	private let queue = OperationQueue()
 
@@ -51,6 +52,7 @@ public class PullOperation: Operation {
 	override public func main() {
 		if isCancelled { return }
 
+        print("### PullOperation started")
 		CloudCore.delegate?.willSyncFromCloud()
 
 		let backgroundContext = persistentContainer.newBackgroundContext()
@@ -64,12 +66,8 @@ public class PullOperation: Operation {
                 let databaseChangeToken = tokens.tokensByDatabaseScope[database.databaseScope.rawValue]
                 let databaseChangeOp = CKFetchDatabaseChangesOperation(previousServerChangeToken: databaseChangeToken)
                 databaseChangeOp.database = database
-                databaseChangeOp.recordZoneWithIDChangedBlock = { (recordZoneID) in
-                    changedZoneIDs.append(recordZoneID)
-                }
-                databaseChangeOp.recordZoneWithIDWasDeletedBlock = { (recordZoneID) in
-                    deletedZoneIDs.append(recordZoneID)
-                }
+                databaseChangeOp.recordZoneWithIDChangedBlock = { changedZoneIDs.append($0) }
+                databaseChangeOp.recordZoneWithIDWasDeletedBlock = { deletedZoneIDs.append($0) }
                 databaseChangeOp.fetchDatabaseChangesCompletionBlock = { (changeToken, moreComing, error) in
                     // TODO: error handling?
                     
@@ -87,10 +85,11 @@ public class PullOperation: Operation {
         }
 
 		queue.waitUntilAllOperationsAreFinished()
-        print("### PullOperation finished")
 
 		CloudCore.delegate?.didSyncFromCloud()
-	}
+
+        print("### PullOperation finished")
+    }
 
     private func addConvertRecordOperation(record: CKRecord, context: NSManagedObjectContext, queue: OperationQueue) {
         // Convert and write CKRecord To NSManagedObject Operation
@@ -99,7 +98,7 @@ public class PullOperation: Operation {
         queue.addOperation(convertOperation)
 
         let operation = BlockOperation()
-        operation.addExecutionBlock {
+        operation.addExecutionBlock { [unowned operation] in
             guard !operation.isCancelled else { return }
             print("### objectsWithMissingReferences: \(convertOperation.missingObjectsPerEntities)")
             self.objectsWithMissingReferences.append(convertOperation.missingObjectsPerEntities)
@@ -128,9 +127,7 @@ public class PullOperation: Operation {
             self.addDeleteRecordOperation(recordID: $0, context: context, queue: recordZoneChangesOperation.queue)
 		}
 
-		recordZoneChangesOperation.errorBlock = { zoneID, error in
-			self.handle(recordZoneChangesError: error, in: zoneID, database: database, context: context)
-		}
+		recordZoneChangesOperation.errorBlock = { self.errorBlock?($0) }
 
         recordZoneChangesOperation.reset = {
             print("### reset")
@@ -143,7 +140,7 @@ public class PullOperation: Operation {
 		queue.addOperation(recordZoneChangesOperation)
 
         let operation = BlockOperation()
-        operation.addExecutionBlock {
+        operation.addExecutionBlock { [unowned operation] in
             guard !operation.isCancelled else { return }
 
             context.performAndWait {
@@ -209,53 +206,9 @@ public class PullOperation: Operation {
     }
 
     private func deleteRecordsFromDeletedZones(recordZoneIDs: [CKRecordZone.ID]) {
-        persistentContainer.performBackgroundTask { (moc) in
-            for entity in self.persistentContainer.managedObjectModel.entities {
-                if let serviceAttributes = entity.serviceAttributeNames {
-                    for recordZoneID in recordZoneIDs {
-                        do {
-                            let request = NSFetchRequest<NSFetchRequestResult>(entityName: entity.name!)
-                            request.predicate = NSPredicate(format: "%K == %@", serviceAttributes.ownerName, recordZoneID.ownerName)
-                            let results = try moc.fetch(request) as! [NSManagedObject]
-                            for object in results {
-                                moc.delete(object)
-                            }
-                        } catch {
-                            print("Unexpected error: \(error).")
-                        }
-                    }
-                }
-            }
-
-            do {
-                try moc.save()
-            } catch {
-                print("Unexpected error: \(error).")
-            }
-        }
+        print("deleteRecordsFromDeletedZones")
+        guard recordZoneIDs.contains(CloudCore.config.privateZoneID()) else { return }
+        purgeBlock?()
     }
-
-    private func handle(recordZoneChangesError: Error, in zoneId: CKRecordZone.ID, database: CKDatabase, context: NSManagedObjectContext) {
-		guard let cloudError = recordZoneChangesError as? CKError else {
-			errorBlock?(recordZoneChangesError)
-			return
-		}
-
-		switch cloudError.code {
-		// User purged cloud database, we need to delete local cache (according Apple Guidelines)
-		case .userDeletedZone:
-			queue.cancelAllOperations()
-
-			let purgeOperation = PurgeLocalDatabaseOperation(parentContext: context, managedObjectModel: persistentContainer.managedObjectModel)
-			purgeOperation.errorBlock = errorBlock
-			queue.addOperation(purgeOperation)
-
-		// Our token is expired, we need to refetch everything again
-		case .changeTokenExpired:
-			tokens.tokensByRecordZoneID[zoneId] = nil
-			self.addRecordZoneChangesOperation(recordZoneIDs: [zoneId], database: database, context: context)
-		default: errorBlock?(cloudError)
-		}
-	}
 
 }
