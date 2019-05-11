@@ -19,9 +19,11 @@ class FetchRecordZoneChangesOperation: Operation {
     var recordChangedBlock: ((CKRecord) -> Void)?
     var recordWithIDWasDeletedBlock: ((CKRecord.ID) -> Void)?
     var reset: (() -> Void)?
+    var isMoreComing = false
+    var serverChangeTokens = [CKRecordZone.ID: CKServerChangeToken]()
 
     private let configurationsByRecordZoneID: [CKRecordZone.ID: CKFetchRecordZoneChangesOperation.ZoneConfiguration]
-    private let fetchQueue = OperationQueue()
+    let queue = OperationQueue()
 
     init(from database: CKDatabase, recordZoneIDs: [CKRecordZone.ID], tokens: Tokens) {
         self.tokens = tokens
@@ -45,9 +47,9 @@ class FetchRecordZoneChangesOperation: Operation {
         super.main()
 
         let fetchOperation = self.makeFetchOperation(configurationsByRecordZoneID: configurationsByRecordZoneID)
-        fetchQueue.addOperation(fetchOperation)
+        queue.addOperation(fetchOperation)
 
-        fetchQueue.waitUntilAllOperationsAreFinished()
+        queue.waitUntilAllOperationsAreFinished()
     }
 
     private func makeFetchOperation(configurationsByRecordZoneID: [CKRecordZone.ID: CKFetchRecordZoneChangesOperation.ZoneConfiguration]) -> CKFetchRecordZoneChangesOperation {
@@ -63,17 +65,15 @@ class FetchRecordZoneChangesOperation: Operation {
             print("### recordWithIDWasDeletedBlock: \(recordID)")
             self.recordWithIDWasDeletedBlock?(recordID)
         }
-        fetchOperation.recordZoneFetchCompletionBlock = { zoneId, serverChangeToken, clientChangeTokenData, isMore, error in
-            print("### recordZoneFetchCompletionBlock: \(zoneId), \(String(describing: serverChangeToken)), \(String(describing: clientChangeTokenData)), \(isMore), \(String(describing: error))")
-            self.tokens.tokensByRecordZoneID[zoneId] = serverChangeToken
+        fetchOperation.recordZoneFetchCompletionBlock = { zoneId, serverChangeToken, clientChangeTokenData, isMoreComing, error in
+            print("### recordZoneFetchCompletionBlock: \(zoneId), \(String(describing: serverChangeToken)), \(String(describing: clientChangeTokenData)), \(isMoreComing), \(String(describing: error))")
+            if let serverChangeToken = serverChangeToken {
+                self.serverChangeTokens[zoneId] = serverChangeToken
+            }
+            self.isMoreComing = isMoreComing
 
             if let error = error {
                 self.errorBlock?(zoneId, error)
-            }
-
-            if isMore {
-                let moreOperation = self.makeFetchOperation(configurationsByRecordZoneID: configurationsByRecordZoneID)
-                self.fetchQueue.addOperation(moreOperation)
             }
         }
         fetchOperation.recordZoneChangeTokensUpdatedBlock = {
@@ -86,9 +86,10 @@ class FetchRecordZoneChangesOperation: Operation {
             if let ckError = error as? CKError,
                 ckError.code == .networkFailure
             {
+                self.queue.cancelAllOperations()
                 self.reset?()
                 let retryOperation = self.makeFetchOperation(configurationsByRecordZoneID: configurationsByRecordZoneID)
-                self.fetchQueue.addOperation(retryOperation)
+                self.queue.addOperation(retryOperation)
             }
         }
 

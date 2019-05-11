@@ -71,11 +71,11 @@ public struct CloudCoreConfig {
     /// Default value is `publicRecordData`
     public var defaultAttributeNamePublicRecordData = "publicRecordData"
     
-	// MARK: User Defaults
+	// MARK: Metadata
 	
-	/// UserDefault's key to store `Tokens` object
+	/// Metadata's key to store `Tokens` object
 	///
 	/// Default value is `CloudCoreTokens`
-	public var userDefaultsKeyTokens = "CloudCoreTokens"
+	public var metadataKeyTokens = "CloudCoreTokens"
 	
 }
