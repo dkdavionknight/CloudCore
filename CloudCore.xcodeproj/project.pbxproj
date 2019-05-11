@@ -11,7 +11,6 @@
 		D9089D4A1FE14E57000FC60C /* SetupOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9089D491FE14E57000FC60C /* SetupOperation.swift */; };
 		D97465F81FE319930060EA66 /* CloudCoreDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D97465F71FE319930060EA66 /* CloudCoreDelegate.swift */; };
 		D97465FA1FE31A650060EA66 /* Module.swift in Sources */ = {isa = PBXBuildFile; fileRef = D97465F91FE31A650060EA66 /* Module.swift */; };
-		D985DE9D1FDFF9D400236870 /* PurgeLocalDatabaseOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D985DE9C1FDFF9D400236870 /* PurgeLocalDatabaseOperation.swift */; };
 		D985DEA41FE026D400236870 /* CreateCloudCoreZoneOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D985DEA31FE026D400236870 /* CreateCloudCoreZoneOperation.swift */; };
 		D985DEA81FE0292000236870 /* SubscribeOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D985DEA71FE0292000236870 /* SubscribeOperation.swift */; };
 		D985DEAB1FE0335800236870 /* PushAllLocalDataOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D985DEAA1FE0335800236870 /* PushAllLocalDataOperation.swift */; };
@@ -95,7 +94,6 @@
 		D9089D491FE14E57000FC60C /* SetupOperation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupOperation.swift; sourceTree = "<group>"; };
 		D97465F71FE319930060EA66 /* CloudCoreDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudCoreDelegate.swift; sourceTree = "<group>"; };
 		D97465F91FE31A650060EA66 /* Module.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Module.swift; sourceTree = "<group>"; };
-		D985DE9C1FDFF9D400236870 /* PurgeLocalDatabaseOperation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurgeLocalDatabaseOperation.swift; sourceTree = "<group>"; };
 		D985DEA31FE026D400236870 /* CreateCloudCoreZoneOperation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateCloudCoreZoneOperation.swift; sourceTree = "<group>"; };
 		D985DEA71FE0292000236870 /* SubscribeOperation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscribeOperation.swift; sourceTree = "<group>"; };
 		D985DEAA1FE0335800236870 /* PushAllLocalDataOperation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushAllLocalDataOperation.swift; sourceTree = "<group>"; };
@@ -133,8 +131,6 @@
 		E24F44A51E4595B900F78819 /* CoreDataRelationship.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CoreDataRelationship.swift; sourceTree = "<group>"; };
 		E24F44A81E459E3E00F78819 /* NSManagedObjectTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NSManagedObjectTests.swift; sourceTree = "<group>"; };
 		E2564BFE1E5061BC002E518B /* ErrorBlockProxy.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ErrorBlockProxy.swift; sourceTree = "<group>"; };
-		E277DB061E7726FB00DC334A /* PublicDatabaseSubscriptions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PublicDatabaseSubscriptions.swift; sourceTree = "<group>"; };
-		E277DB0C1E77F96400DC334A /* FetchPublicSubscriptionsOperation.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FetchPublicSubscriptionsOperation.swift; sourceTree = "<group>"; };
 		E28F0B911E671E6500BF532A /* CKRecordTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CKRecordTests.swift; sourceTree = "<group>"; };
 		E28F0BA01E6725E700BF532A /* NSEntityDescriptionTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NSEntityDescriptionTests.swift; sourceTree = "<group>"; };
 		E29BB2191E4334590020F5B6 /* CloudCoreConfig.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CloudCoreConfig.swift; sourceTree = "<group>"; };
@@ -335,7 +331,6 @@
 		E2075FF31E4BB70D00E31F1F /* Pull */ = {
 			isa = PBXGroup;
 			children = (
-				E277DB0F1E77FC9F00DC334A /* PublicSubscriptions */,
 				E2C02A171E4CDEDA001B2871 /* SubOperations */,
 				E2E4D83D1E76D4EF00550CBE /* PullOperation.swift */,
 			);
@@ -383,15 +378,6 @@
 				E20A73CB1E68608100A6851A /* RecordToCoreDataOperationTests.swift */,
 			);
 			path = Operations;
-			sourceTree = "<group>";
-		};
-		E277DB0F1E77FC9F00DC334A /* PublicSubscriptions */ = {
-			isa = PBXGroup;
-			children = (
-				E277DB0C1E77F96400DC334A /* FetchPublicSubscriptionsOperation.swift */,
-				E277DB061E7726FB00DC334A /* PublicDatabaseSubscriptions.swift */,
-			);
-			path = PublicSubscriptions;
 			sourceTree = "<group>";
 		};
 		E288C5751E4C9519002360A1 /* ObjectToRecord */ = {
@@ -458,7 +444,6 @@
 				E2C02A181E4CDEF1001B2871 /* DeleteFromCoreDataOperation.swift */,
 				E2C02A131E4CC2A5001B2871 /* FetchRecordZoneChangesOperation.swift */,
 				E21FA03D1E4A7E7200B1DAA2 /* RecordToCoreDataOperation.swift */,
-				D985DE9C1FDFF9D400236870 /* PurgeLocalDatabaseOperation.swift */,
 			);
 			path = SubOperations;
 			sourceTree = "<group>";
@@ -633,6 +618,7 @@
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				English,
 				en,
 				Base,
 			);
@@ -711,7 +697,6 @@
 				D985DEA41FE026D400236870 /* CreateCloudCoreZoneOperation.swift in Sources */,
 				D985DEAB1FE0335800236870 /* PushAllLocalDataOperation.swift in Sources */,
 				E2C02A0E1E4C99AD001B2871 /* ObjectToRecordConverter.swift in Sources */,
-				D985DE9D1FDFF9D400236870 /* PurgeLocalDatabaseOperation.swift in Sources */,
 				E2FA74481E769D9400C3489D /* RecordIDWithDatabase.swift in Sources */,
 				E29BB2211E4344E80020F5B6 /* CKRecord.swift in Sources */,
 				E2D390081E4A49350019BBCD /* NSEntityDescription.swift in Sources */,
