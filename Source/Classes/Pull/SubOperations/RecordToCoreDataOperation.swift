@@ -97,7 +97,7 @@ public class RecordToCoreDataOperation: Operation {
                 if object.entity.attributesByName[key] != nil || object.entity.relationshipsByName[key] != nil {
                     object.setValue(coreDataValue, forKey: key)
                 }
-                notFoundRecordNamesForAttribute.merge(ckAttribute.notFoundRecordNamesForAttribute) { current, _ in current }
+                notFoundRecordNamesForAttribute.merge(ckAttribute.notFoundRecordNamesForAttribute) { $1 }
             }
         }
 

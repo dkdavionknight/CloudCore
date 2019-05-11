@@ -57,44 +57,7 @@ public class PullOperation: Operation {
 		backgroundContext.name = CloudCore.config.pullContextName
 
         for database in self.databases {
-            if database.databaseScope == .public {
-                let changedRecordIDs: NSMutableSet = []
-                let deletedRecordIDs: NSMutableSet = []
-                let previousToken = self.tokens.tokensByDatabaseScope[database.databaseScope.rawValue]
-                let notesOp = CKFetchNotificationChangesOperation(previousServerChangeToken: previousToken)
-                notesOp.notificationChangedBlock = { (innerNotification) in
-                    if let innerQueryNotification = innerNotification as? CKQueryNotification {
-                        if innerQueryNotification.queryNotificationReason == .recordDeleted {
-                            deletedRecordIDs.add(innerQueryNotification.recordID!)
-                            changedRecordIDs.remove(innerQueryNotification.recordID!)
-                        } else {
-                            changedRecordIDs.add(innerQueryNotification.recordID!)
-                        }
-                    }
-                }
-                notesOp.fetchNotificationChangesCompletionBlock = { (changeToken, error) in
-                    let allChangedRecordIDs = changedRecordIDs.allObjects as! [CKRecord.ID]
-                    let fetch = CKFetchRecordsOperation(recordIDs: allChangedRecordIDs)
-                    fetch.database = CloudCore.config.container.publicCloudDatabase
-                    fetch.perRecordCompletionBlock = { (record, recordID, error) in
-                        if error == nil {
-                            self.addConvertRecordOperation(record: record!, context: backgroundContext)
-                        }
-                    }
-                    fetch.fetchRecordsCompletionBlock = { (_, error) in
-                        self.processMissingReferences(context: backgroundContext)
-                    }
-                    self.queue.addOperation(fetch)
-
-                    let allDeletedRecordIDs = deletedRecordIDs.allObjects as! [CKRecord.ID]
-                    for recordID in allDeletedRecordIDs {
-                        self.addDeleteRecordOperation(recordID: recordID, context: backgroundContext)
-                    }
-
-                    self.tokens.tokensByDatabaseScope[database.databaseScope.rawValue] = changeToken
-                }
-                self.queue.addOperation(notesOp)
-            } else {
+            if database.databaseScope != .public {
                 var changedZoneIDs = [CKRecordZone.ID]()
                 var deletedZoneIDs = [CKRecordZone.ID]()
 
@@ -124,23 +87,12 @@ public class PullOperation: Operation {
         }
 
 		queue.waitUntilAllOperationsAreFinished()
-        print("### queue.waitUntilAllOperationsAreFinished")
-
-        backgroundContext.performAndWait {
-            do {
-                processMissingReferences(context: backgroundContext)
-                try backgroundContext.save()
-            } catch {
-                errorBlock?(error)
-            }
-        }
-
-        tokens.saveToContainer(persistentContainer)
+        print("### PullOperation finished")
 
 		CloudCore.delegate?.didSyncFromCloud()
 	}
 
-    private func addConvertRecordOperation(record: CKRecord, context: NSManagedObjectContext) {
+    private func addConvertRecordOperation(record: CKRecord, context: NSManagedObjectContext, queue: OperationQueue) {
         // Convert and write CKRecord To NSManagedObject Operation
         let convertOperation = RecordToCoreDataOperation(parentContext: context, record: record)
         convertOperation.errorBlock = { self.errorBlock?($0) }
@@ -156,7 +108,7 @@ public class PullOperation: Operation {
         queue.addOperation(operation)
     }
 
-    private func addDeleteRecordOperation(recordID: CKRecord.ID, context: NSManagedObjectContext) {
+    private func addDeleteRecordOperation(recordID: CKRecord.ID, context: NSManagedObjectContext, queue: OperationQueue) {
         // Delete NSManagedObject with specified recordID Operation
         let deleteOperation = DeleteFromCoreDataOperation(parentContext: context, recordID: recordID)
         deleteOperation.errorBlock = { self.errorBlock?($0) }
@@ -169,11 +121,11 @@ public class PullOperation: Operation {
 		let recordZoneChangesOperation = FetchRecordZoneChangesOperation(from: database, recordZoneIDs: recordZoneIDs, tokens: tokens)
 
 		recordZoneChangesOperation.recordChangedBlock = {
-            self.addConvertRecordOperation(record: $0, context: context)
+            self.addConvertRecordOperation(record: $0, context: context, queue: recordZoneChangesOperation.queue)
 		}
 
 		recordZoneChangesOperation.recordWithIDWasDeletedBlock = {
-            self.addDeleteRecordOperation(recordID: $0, context: context)
+            self.addDeleteRecordOperation(recordID: $0, context: context, queue: recordZoneChangesOperation.queue)
 		}
 
 		recordZoneChangesOperation.errorBlock = { zoneID, error in
@@ -182,7 +134,6 @@ public class PullOperation: Operation {
 
         recordZoneChangesOperation.reset = {
             print("### reset")
-            self.queue.cancelAllOperations()
             self.objectsWithMissingReferences = [MissingReferences]()
             context.performAndWait {
                 context.reset()
@@ -190,6 +141,32 @@ public class PullOperation: Operation {
         }
 
 		queue.addOperation(recordZoneChangesOperation)
+
+        let operation = BlockOperation()
+        operation.addExecutionBlock {
+            guard !operation.isCancelled else { return }
+
+            context.performAndWait {
+                do {
+                    self.processMissingReferences(context: context)
+                    try context.save()
+
+                    self.tokens.tokensByRecordZoneID.merge(recordZoneChangesOperation.serverChangeTokens) { $1 }
+                    self.tokens.saveToContainer(self.persistentContainer)
+                    try context.save()
+
+                    print("### recordZoneChangesOperation saved")
+
+                    if recordZoneChangesOperation.isMoreComing {
+                        self.addRecordZoneChangesOperation(recordZoneIDs: recordZoneIDs, database: database, context: context)
+                    }
+                } catch {
+                    self.errorBlock?(error)
+                }
+            }
+        }
+        operation.addDependency(recordZoneChangesOperation)
+        queue.addOperation(operation)
 	}
 
     private func processMissingReferences(context: NSManagedObjectContext) {
