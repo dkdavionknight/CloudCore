@@ -200,6 +200,8 @@ class CoreDataObserver {
                                     deletedRecordIDs.append(recordIDWithDatabase)
                                 }
                             }
+                        @unknown default:
+                            fatalError()
                         }
                     }
 

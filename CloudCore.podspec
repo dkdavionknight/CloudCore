@@ -19,7 +19,7 @@ Pod::Spec.new do |s|
 
   s.ios.frameworks = 'Foundation', 'CloudKit', 'CoreData'
   s.osx.frameworks = 'Foundation', 'CloudKit', 'CoreData'
-  s.swift_version = '4.2'
+  s.swift_version = '5.0'
 
   s.documentation_url = 'http://cocoadocs.org/docsets/CloudCore/'
 end

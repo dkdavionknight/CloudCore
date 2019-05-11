@@ -107,13 +107,12 @@ class ObjectToRecordConverter {
             guard let serviceAttributeNames = object.entity.serviceAttributeNames else { continue }
 
             for scope in serviceAttributeNames.scopes {
-                if let triedRestoredRecord = try? object.restoreRecordWithSystemFields(for: scope),
-                    let restoredRecord = triedRestoredRecord {
-                    let targetScope = self.targetScope(for: scope, and: object)
-                    let database = self.database(for: targetScope)
-                    let recordIDWithDB = RecordIDWithDatabase(restoredRecord.recordID, database)
-                    recordIDs.append(recordIDWithDB)
-                }
+                guard let triedRestoredRecord = try? object.restoreRecordWithSystemFields(for: scope) else { continue }
+                let restoredRecord = triedRestoredRecord
+                let targetScope = self.targetScope(for: scope, and: object)
+                let database = self.database(for: targetScope)
+                let recordIDWithDB = RecordIDWithDatabase(restoredRecord.recordID, database)
+                recordIDs.append(recordIDWithDB)
             }
 		}
 

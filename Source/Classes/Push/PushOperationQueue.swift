@@ -71,8 +71,10 @@ class PushOperationQueue: OperationQueue {
 	/// Remove locally cached assets prepared for uploading at CloudKit
 	private func removeCachedAssets(for record: CKRecord) {
 		for key in record.allKeys() {
-			guard let asset = record.value(forKey: key) as? CKAsset else { continue }
-			try? FileManager.default.removeItem(at: asset.fileURL)
+			guard let asset = record.value(forKey: key) as? CKAsset,
+                let fileURL = asset.fileURL
+                else { continue }
+			try? FileManager.default.removeItem(at: fileURL)
 		}
 	}
 
