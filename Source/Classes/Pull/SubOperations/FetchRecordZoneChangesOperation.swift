@@ -57,15 +57,19 @@ class FetchRecordZoneChangesOperation: Operation {
         let fetchOperation = CKFetchRecordZoneChangesOperation(recordZoneIDs: recordZoneIDs, configurationsByRecordZoneID: configurationsByRecordZoneID)
         fetchOperation.fetchAllChanges = false
 
-        fetchOperation.recordChangedBlock = {
+        fetchOperation.recordChangedBlock = { [unowned fetchOperation] in
+            if fetchOperation.isCancelled { return }
             print("### recordChangedBlock: \($0)")
             self.recordChangedBlock?($0)
         }
-        fetchOperation.recordWithIDWasDeletedBlock = { recordID, _ in
+        fetchOperation.recordWithIDWasDeletedBlock = { [unowned fetchOperation] recordID, _ in
+            if fetchOperation.isCancelled { return }
             print("### recordWithIDWasDeletedBlock: \(recordID)")
             self.recordWithIDWasDeletedBlock?(recordID)
         }
-        fetchOperation.recordZoneFetchCompletionBlock = { zoneId, serverChangeToken, clientChangeTokenData, isMoreComing, error in
+        fetchOperation.recordZoneFetchCompletionBlock = { [unowned fetchOperation] zoneId, serverChangeToken, clientChangeTokenData, isMoreComing, error in
+            if fetchOperation.isCancelled { return }
+
             print("### recordZoneFetchCompletionBlock: \(zoneId), \(String(describing: serverChangeToken)), \(String(describing: clientChangeTokenData)), \(isMoreComing), \(String(describing: error))")
             if let serverChangeToken = serverChangeToken {
                 self.serverChangeTokens[zoneId] = serverChangeToken
@@ -73,23 +77,37 @@ class FetchRecordZoneChangesOperation: Operation {
             self.isMoreComing = isMoreComing
 
             if let error = error {
+                if let ckError = error as? CKError,
+                    ckError.code == .userDeletedZone || ckError.code == .changeTokenExpired
+                {
+                    self.queue.cancelAllOperations()
+                }
                 self.errorBlock?(error)
             }
         }
         fetchOperation.recordZoneChangeTokensUpdatedBlock = {
             print("### recordZoneChangeTokensUpdatedBlock: \($0), \(String(describing: $1)), \(String(describing: $2))")
         }
-        fetchOperation.fetchRecordZoneChangesCompletionBlock = {
+        fetchOperation.fetchRecordZoneChangesCompletionBlock = { [unowned fetchOperation] in
+            if fetchOperation.isCancelled { return }
+
             print("### fetchRecordZoneChangesCompletionBlock: \(String(describing: $0))")
             guard let error = $0 else { return }
 
-            if let ckError = error as? CKError,
-                ckError.code == .networkFailure
-            {
-                self.queue.cancelAllOperations()
-                self.reset?()
-                let retryOperation = self.makeFetchOperation(configurationsByRecordZoneID: configurationsByRecordZoneID)
-                self.queue.addOperation(retryOperation)
+            if let ckError = error as? CKError {
+                if ckError.code == .networkFailure {
+                    self.queue.cancelAllOperations()
+                    self.reset?()
+                    let retryOperation = self.makeFetchOperation(configurationsByRecordZoneID: configurationsByRecordZoneID)
+                    self.queue.addOperation(retryOperation)
+                }
+                else if ckError.code == .userDeletedZone || ckError.code == .changeTokenExpired {
+                    self.queue.cancelAllOperations()
+                    self.errorBlock?(error)
+                }
+                else {
+                    self.errorBlock?(error)
+                }
             }
             else {
                 self.errorBlock?(error)

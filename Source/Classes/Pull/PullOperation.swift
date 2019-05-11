@@ -99,7 +99,7 @@ public class PullOperation: Operation {
 
         let operation = BlockOperation()
         operation.addExecutionBlock { [unowned operation] in
-            guard !operation.isCancelled else { return }
+            if operation.isCancelled { return }
             print("### objectsWithMissingReferences: \(convertOperation.missingObjectsPerEntities)")
             self.objectsWithMissingReferences.append(convertOperation.missingObjectsPerEntities)
         }
@@ -127,7 +127,15 @@ public class PullOperation: Operation {
             self.addDeleteRecordOperation(recordID: $0, context: context, queue: recordZoneChangesOperation.queue)
 		}
 
-		recordZoneChangesOperation.errorBlock = { self.errorBlock?($0) }
+        recordZoneChangesOperation.errorBlock = {
+            if let error = $0 as? CKError,
+                error.code == .userDeletedZone || error.code == .changeTokenExpired
+            {
+                print("### recordZoneChangesOperation cancelAllOperations")
+                self.queue.cancelAllOperations()
+            }
+            self.errorBlock?($0)
+        }
 
         recordZoneChangesOperation.reset = {
             print("### reset")
@@ -141,7 +149,7 @@ public class PullOperation: Operation {
 
         let operation = BlockOperation()
         operation.addExecutionBlock { [unowned operation] in
-            guard !operation.isCancelled else { return }
+            if operation.isCancelled { return }
 
             context.performAndWait {
                 do {
@@ -206,7 +214,7 @@ public class PullOperation: Operation {
     }
 
     private func deleteRecordsFromDeletedZones(recordZoneIDs: [CKRecordZone.ID]) {
-        print("deleteRecordsFromDeletedZones")
+        print("### deleteRecordsFromDeletedZones")
         guard recordZoneIDs.contains(CloudCore.config.privateZoneID()) else { return }
         purgeBlock?()
     }
