@@ -40,11 +40,11 @@ open class Tokens: NSObject, NSCoding {
     /// - Returns: previously saved `Token` object, if tokens weren't saved before newly initialized `Tokens` object will be returned
     public static func loadFromContainer(_ container: NSPersistentContainer) -> Tokens {
         guard let tokensData = container.persistentStoreCoordinator.metadataValue(forKey: CloudCore.config.metadataKeyTokens) as? Data,
-            let tokens = (try? NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSData.self], from: tokensData)) as? Tokens else {
-                return Tokens()
-        }
+            let unarchiver = try? NSKeyedUnarchiver(forReadingFrom: tokensData)
+            else { return Tokens() }
 
-        return tokens
+        unarchiver.requiresSecureCoding = false
+        return unarchiver.decodeObject(forKey: NSKeyedArchiveRootObjectKey) as? Tokens ?? Tokens()
     }
 
     /// Save tokens to PersistentStore Metadata. Key is used from `CloudCoreConfig.userDefaultsKeyTokens`
