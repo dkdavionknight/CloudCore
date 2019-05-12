@@ -113,16 +113,14 @@ open class CloudCore {
         queue.addOperation(subscribeOperation)
 		#endif
 
-        if !isQueueContainsPullOperation() {
-            // Fetch updated data (e.g. push notifications weren't received)
-            let updateFromCloudOperation = makePullOperation(persistentContainer: container)
+        // Fetch updated data (e.g. push notifications weren't received)
+        let updateFromCloudOperation = makePullOperation(persistentContainer: container)
 
-            #if !os(watchOS)
-            updateFromCloudOperation.addDependency(subscribeOperation)
-            #endif
+        #if !os(watchOS)
+        updateFromCloudOperation.addDependency(subscribeOperation)
+        #endif
 
-            queue.addOperation(updateFromCloudOperation)
-        }
+        queue.addOperation(updateFromCloudOperation)
 	}
 
 	/// Disables synchronization (push notifications won't be sent also)
@@ -236,20 +234,14 @@ open class CloudCore {
         switch cloudError.code {
         // User purged cloud database, we need to delete local cache (according Apple Guidelines)
         // Or our token is expired, we need to refetch everything again
-        case .userDeletedZone, .changeTokenExpired:
-            queue.cancelAllOperations()
-            purge(container: container)
-            print("### makePullOperation \(String(describing: cloudError))")
-            let operation = makePullOperation(persistentContainer: container)
-            queue.addOperation(operation)
+        case .userDeletedZone, .changeTokenExpired: purge(container: container)
         default: delegate?.error(error: cloudError, module: .some(.pullFromCloud))
         }
     }
 
     static private func purge(container: NSPersistentContainer) {
-        print("### purge")
+        disable()
         delegate?.purge(container: container)
-        tokens = Tokens()
     }
 
     static private func makePullOperation(persistentContainer container: NSPersistentContainer) -> PullOperation {
