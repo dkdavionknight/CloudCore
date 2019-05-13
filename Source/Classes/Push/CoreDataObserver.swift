@@ -178,12 +178,17 @@ class CoreDataObserver {
                         case .update:
                             if let inserted = try? moc.existingObject(with: change.changedObjectID) {
                                 if let updatedProperties = change.updatedProperties {
-                                    let updatedPropertyNames: [String] = updatedProperties.map { (propertyDescription) in
-                                        return propertyDescription.name
-                                    }
+                                    let updatedPropertyNames: [String] = updatedProperties
+                                        .filter {
+                                            guard let description = $0 as? NSRelationshipDescription else { return true }
+                                            return !description.isToMany || description.isCloudCoreEnabled
+                                        }
+                                        .map { $0.name }
                                     inserted.updatedPropertyNames = updatedPropertyNames
                                 }
-                                updatedObject.insert(inserted)
+                                if !(inserted.updatedPropertyNames?.isEmpty ?? true) {
+                                    updatedObject.insert(inserted)
+                                }
                             }
 
                         case .delete:
