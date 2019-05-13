@@ -29,12 +29,7 @@ class CoreDataRelationship {
 
 	private static func relationshipDescription(for lookupName: String, in entity: NSEntityDescription) -> NSRelationshipDescription? {
 		for (name, description) in entity.relationshipsByName {
-			if lookupName == name {
-                if !description.isToMany || NSString(string: description.userInfo?["CloudCoreEnabled"] as? String ?? "").boolValue {
-                    return description
-                }
-                break
-            }
+            if lookupName == name { return !description.isToMany || description.isCloudCoreEnabled ? description : nil }
 		}
 
 		return nil
