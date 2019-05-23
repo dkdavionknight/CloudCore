@@ -55,7 +55,6 @@ class FetchRecordZoneChangesOperation: Operation {
     private func makeFetchOperation(configurationsByRecordZoneID: [CKRecordZone.ID: CKFetchRecordZoneChangesOperation.ZoneConfiguration]) -> CKFetchRecordZoneChangesOperation {
         // Init Fetch Operation
         let fetchOperation = CKFetchRecordZoneChangesOperation(recordZoneIDs: recordZoneIDs, configurationsByRecordZoneID: configurationsByRecordZoneID)
-        fetchOperation.fetchAllChanges = false
 
         fetchOperation.recordChangedBlock = { [unowned fetchOperation] in
             if fetchOperation.isCancelled { return }
