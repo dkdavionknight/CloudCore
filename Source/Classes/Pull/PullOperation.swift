@@ -99,9 +99,11 @@ public class PullOperation: Operation {
 
         let operation = BlockOperation()
         operation.addExecutionBlock { [unowned operation] in
-            if operation.isCancelled { return }
-            print("### objectsWithMissingReferences: \(convertOperation.missingObjectsPerEntities)")
-            self.objectsWithMissingReferences.append(convertOperation.missingObjectsPerEntities)
+            if operation.isCancelled || convertOperation.missingObjectsPerEntities.isEmpty { return }
+            print("### objectsWithMissingReferences for \(record.recordID.recordName): \(convertOperation.missingObjectsPerEntities)")
+            context.perform {
+                self.objectsWithMissingReferences.append(convertOperation.missingObjectsPerEntities)
+            }
         }
         operation.addDependency(convertOperation)
         queue.addOperation(operation)
@@ -119,11 +121,11 @@ public class PullOperation: Operation {
 
 		let recordZoneChangesOperation = FetchRecordZoneChangesOperation(from: database, recordZoneIDs: recordZoneIDs, tokens: tokens)
 
-		recordZoneChangesOperation.recordChangedBlock = {
+		recordZoneChangesOperation.recordChangedBlock = { [unowned recordZoneChangesOperation] in
             self.addConvertRecordOperation(record: $0, context: context, queue: recordZoneChangesOperation.queue)
 		}
 
-		recordZoneChangesOperation.recordWithIDWasDeletedBlock = {
+		recordZoneChangesOperation.recordWithIDWasDeletedBlock = { [unowned recordZoneChangesOperation] in
             self.addDeleteRecordOperation(recordID: $0, context: context, queue: recordZoneChangesOperation.queue)
 		}
 
@@ -153,6 +155,7 @@ public class PullOperation: Operation {
 
             context.performAndWait {
                 do {
+                    print("### recordZoneChangesOperation save start")
                     self.processMissingReferences(context: context)
                     try context.save()
 
