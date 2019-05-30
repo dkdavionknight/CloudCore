@@ -12,51 +12,56 @@ import CoreData
 /// An operation that fetches data from CloudKit and saves it to Core Data, you can use it without calling `CloudCore.pull` methods if you application relies on `Operation`
 public class PullOperation: Operation {
 
-	/// Private cloud database for the CKContainer specified by CloudCoreConfig
-	public static let allDatabases = [
-		CloudCore.config.container.publicCloudDatabase,
-		CloudCore.config.container.privateCloudDatabase,
-		CloudCore.config.container.sharedCloudDatabase
-	]
+    /// Private cloud database for the CKContainer specified by CloudCoreConfig
+    public static let allDatabases = [
+        CloudCore.config.container.publicCloudDatabase,
+        CloudCore.config.container.privateCloudDatabase,
+        CloudCore.config.container.sharedCloudDatabase
+    ]
 
-	private let databases: [CKDatabase]
-	private let persistentContainer: NSPersistentContainer
+    private let databases: [CKDatabase]
+    private let persistentContainer: NSPersistentContainer
     private let tokens: Tokens
 
-	/// Called every time if error occurs
-	public var errorBlock: ErrorBlock?
+    /// Called every time if error occurs
+    public var errorBlock: ErrorBlock?
     public var purgeBlock: (() -> Void)?
 
-	private let queue = OperationQueue()
+    private let queue = OperationQueue()
 
     private var objectsWithMissingReferences = [MissingReferences]()
 
-	/// Initialize operation, it's recommended to set `errorBlock`
-	///
-	/// - Parameters:
-	///   - databases: list of databases to fetch data from (only private is supported now)
-	///   - persistentContainer: `NSPersistentContainer` that will be used to save data
-	///   - tokens: previously saved `Tokens`, you can generate new ones if you want to fetch all data
-	public init(from databases: [CKDatabase] = PullOperation.allDatabases,
+    /// Initialize operation, it's recommended to set `errorBlock`
+    ///
+    /// - Parameters:
+    ///   - databases: list of databases to fetch data from (only private is supported now)
+    ///   - persistentContainer: `NSPersistentContainer` that will be used to save data
+    ///   - tokens: previously saved `Tokens`, you can generate new ones if you want to fetch all data
+    public init(from databases: [CKDatabase] = PullOperation.allDatabases,
                 persistentContainer: NSPersistentContainer,
                 tokens: Tokens = CloudCore.tokens) {
-		self.databases = databases
-		self.persistentContainer = persistentContainer
+        self.databases = databases
+        self.persistentContainer = persistentContainer
         self.tokens = tokens
 
-		queue.name = "PullQueue"
+        queue.name = "PullQueue"
         queue.maxConcurrentOperationCount = 1
-	}
+    }
 
-	/// Performs the receiver’s non-concurrent task.
-	override public func main() {
-		if isCancelled { return }
+    override public func cancel() {
+        super.cancel()
+        queue.cancelAllOperations()
+    }
+
+    /// Performs the receiver’s non-concurrent task.
+    override public func main() {
+        if isCancelled { return }
 
         print("### PullOperation started")
-		CloudCore.delegate?.willSyncFromCloud()
+        CloudCore.delegate?.willSyncFromCloud()
 
-		let backgroundContext = persistentContainer.newBackgroundContext()
-		backgroundContext.name = CloudCore.config.pullContextName
+        let backgroundContext = persistentContainer.newBackgroundContext()
+        backgroundContext.name = CloudCore.config.pullContextName
 
         for database in self.databases {
             if database.databaseScope != .public {
@@ -70,12 +75,20 @@ public class PullOperation: Operation {
                 databaseChangeOp.recordZoneWithIDWasDeletedBlock = { deletedZoneIDs.append($0) }
                 databaseChangeOp.fetchDatabaseChangesCompletionBlock = { (changeToken, moreComing, error) in
                     // TODO: error handling?
-                    
+
+                    if deletedZoneIDs.contains(CloudCore.config.privateZoneID()) {
+                        if CloudCore.config.isDeleting {
+                            CloudCore.config.isDeleting = false
+                        }
+                        else {
+                            self.purgeBlock?()
+                            CloudCore.config.isDeleting = true
+                            return
+                        }
+                    }
+
                     if changedZoneIDs.count > 0 {
                         self.addRecordZoneChangesOperation(recordZoneIDs: changedZoneIDs, database: database, context: backgroundContext)
-                    }
-                    if deletedZoneIDs.count > 0 {
-                        self.deleteRecordsFromDeletedZones(recordZoneIDs: deletedZoneIDs)
                     }
 
                     self.tokens.tokensByDatabaseScope[database.databaseScope.rawValue] = changeToken
@@ -84,9 +97,9 @@ public class PullOperation: Operation {
             }
         }
 
-		queue.waitUntilAllOperationsAreFinished()
+        queue.waitUntilAllOperationsAreFinished()
 
-		CloudCore.delegate?.didSyncFromCloud()
+        CloudCore.delegate?.didSyncFromCloud()
 
         print("### PullOperation finished")
     }
@@ -117,17 +130,17 @@ public class PullOperation: Operation {
     }
 
     private func addRecordZoneChangesOperation(recordZoneIDs: [CKRecordZone.ID], database: CKDatabase, context: NSManagedObjectContext) {
-		if recordZoneIDs.isEmpty { return }
+        if recordZoneIDs.isEmpty { return }
 
-		let recordZoneChangesOperation = FetchRecordZoneChangesOperation(from: database, recordZoneIDs: recordZoneIDs, tokens: tokens)
+        let recordZoneChangesOperation = FetchRecordZoneChangesOperation(from: database, recordZoneIDs: recordZoneIDs, tokens: tokens)
 
-		recordZoneChangesOperation.recordChangedBlock = { [unowned recordZoneChangesOperation] in
+        recordZoneChangesOperation.recordChangedBlock = { [unowned recordZoneChangesOperation] in
             self.addConvertRecordOperation(record: $0, context: context, queue: recordZoneChangesOperation.queue)
-		}
+        }
 
-		recordZoneChangesOperation.recordWithIDWasDeletedBlock = { [unowned recordZoneChangesOperation] in
+        recordZoneChangesOperation.recordWithIDWasDeletedBlock = { [unowned recordZoneChangesOperation] in
             self.addDeleteRecordOperation(recordID: $0, context: context, queue: recordZoneChangesOperation.queue)
-		}
+        }
 
         recordZoneChangesOperation.errorBlock = {
             if let error = $0 as? CKError,
@@ -147,7 +160,7 @@ public class PullOperation: Operation {
             }
         }
 
-		queue.addOperation(recordZoneChangesOperation)
+        queue.addOperation(recordZoneChangesOperation)
 
         let operation = BlockOperation()
         operation.addExecutionBlock { [unowned operation] in
@@ -175,7 +188,7 @@ public class PullOperation: Operation {
         }
         operation.addDependency(recordZoneChangesOperation)
         queue.addOperation(operation)
-	}
+    }
 
     private func processMissingReferences(context: NSManagedObjectContext) {
         // iterate over all missing references and fix them, now are all NSManagedObjects created
@@ -214,12 +227,6 @@ public class PullOperation: Operation {
                 }
             }
         }
-    }
-
-    private func deleteRecordsFromDeletedZones(recordZoneIDs: [CKRecordZone.ID]) {
-        print("### deleteRecordsFromDeletedZones")
-        guard recordZoneIDs.contains(CloudCore.config.privateZoneID()) else { return }
-        purgeBlock?()
     }
 
 }
