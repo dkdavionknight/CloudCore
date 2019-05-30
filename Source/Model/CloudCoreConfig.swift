@@ -77,5 +77,7 @@ public struct CloudCoreConfig {
 	///
 	/// Default value is `CloudCoreTokens`
 	public var metadataKeyTokens = "CloudCoreTokens"
-	
+
+    public var isDeleting = false
+    
 }
