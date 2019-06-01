@@ -271,9 +271,17 @@ open class CloudCore {
     }
 
     public static func removeShare(object: NSManagedObject, completionHandler: @escaping (Error?) -> Void) {
-        let objectID = object.objectID
         if let container = coreDataObserver?.container {
-            pull(to: container, completion: nil)
+            let recordID = try! object.restoreRecordWithSystemFields(for: .private)!.recordID
+            let token = tokens.tokensByRecordZoneID[recordID.zoneID]
+            pull(to: container) {
+                guard token == tokens.tokensByRecordZoneID[recordID.zoneID] else { return }
+                // repeat the pull operation after 3 seconds to attempt to capture the database change
+                DispatchQueue.global().asyncAfter(deadline: .now() + 3) {
+                    pull(to: container, completion: nil)
+                }
+            }
+            let objectID = object.objectID
             container.performBackgroundTask { context in
                 let object = context.object(with: objectID)
                 context.delete(object)
