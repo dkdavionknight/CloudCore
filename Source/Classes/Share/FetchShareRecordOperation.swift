@@ -13,16 +13,18 @@ class FetchShareRecordOperation: AsynchronousOperation {
     private(set) var share: CKShare?
 
     private let recordID: CKRecord.ID
+    private let database: CKDatabase
 
     override func main() {
         super.main()
 
         let fetchRecordOperation = makeFetchRecordOperation(recordID: recordID)
-        fetchRecordOperation.perRecordCompletionBlock = {
-            if let error = $2 {
+        fetchRecordOperation.desiredKeys = []
+        fetchRecordOperation.fetchRecordsCompletionBlock = {
+            if let error = $1 {
                 self.error = error
             }
-            else if let record = $0 {
+            else if let record = $0?.first?.value {
                 self.record = record
                 if let shareID = record.share?.recordID {
                     self.addFetchShareOperation(shareID: shareID)
@@ -31,34 +33,34 @@ class FetchShareRecordOperation: AsynchronousOperation {
             }
             self.state = .finished
         }
-        CloudCore.config.container.privateCloudDatabase.add(fetchRecordOperation)
+        database.add(fetchRecordOperation)
     }
 
     private func addFetchShareOperation(shareID: CKRecord.ID) {
         let fetchShareOperation = makeFetchRecordOperation(recordID: shareID)
-        fetchShareOperation.perRecordCompletionBlock = {
-            if let error = $2 {
+        fetchShareOperation.fetchRecordsCompletionBlock = {
+            if let error = $1 {
                 self.error = error
             }
-            else if let share = $0 as? CKShare {
+            else if let share = $0?.first?.value as? CKShare {
                 self.share = share
             }
             self.state = .finished
         }
-        CloudCore.config.container.privateCloudDatabase.add(fetchShareOperation)
+        database.add(fetchShareOperation)
     }
 
     private func makeFetchRecordOperation(recordID: CKRecord.ID) -> CKFetchRecordsOperation {
         let fetchRecordOperation = CKFetchRecordsOperation(recordIDs: [recordID])
         fetchRecordOperation.qualityOfService = .userInteractive
-        fetchRecordOperation.desiredKeys = []
         return fetchRecordOperation
     }
 
     // MARK: - Init
 
-    init(recordID: CKRecord.ID) {
+    init(recordID: CKRecord.ID, database: CKDatabase) {
         self.recordID = recordID
+        self.database = database
         super.init()
     }
 

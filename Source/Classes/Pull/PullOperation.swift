@@ -86,6 +86,10 @@ public class PullOperation: Operation {
                             return
                         }
                     }
+                    else if deletedZoneIDs.count > 0 {
+                        self.deleteRecordsFromDeletedZones(recordZoneIDs: deletedZoneIDs)
+                    }
+
 
                     if changedZoneIDs.count > 0 {
                         self.addRecordZoneChangesOperation(recordZoneIDs: changedZoneIDs, database: database, context: backgroundContext)
@@ -127,6 +131,33 @@ public class PullOperation: Operation {
         let deleteOperation = DeleteFromCoreDataOperation(parentContext: context, recordID: recordID)
         deleteOperation.errorBlock = { self.errorBlock?($0) }
         queue.addOperation(deleteOperation)
+    }
+
+    private func deleteRecordsFromDeletedZones(recordZoneIDs: [CKRecordZone.ID]) {
+        persistentContainer.performBackgroundTask { (moc) in
+            for entity in self.persistentContainer.managedObjectModel.entities {
+                if let serviceAttributes = entity.serviceAttributeNames {
+                    for recordZoneID in recordZoneIDs {
+                        do {
+                            let request = NSFetchRequest<NSFetchRequestResult>(entityName: entity.name!)
+                            request.predicate = NSPredicate(format: "%K == %@", serviceAttributes.ownerName, recordZoneID.ownerName)
+                            let results = try moc.fetch(request) as! [NSManagedObject]
+                            for object in results {
+                                moc.delete(object)
+                            }
+                        } catch {
+                            print("Unexpected error: \(error).")
+                        }
+                    }
+                }
+            }
+
+            do {
+                try moc.save()
+            } catch {
+                print("Unexpected error: \(error).")
+            }
+        }
     }
 
     private func addRecordZoneChangesOperation(recordZoneIDs: [CKRecordZone.ID], database: CKDatabase, context: NSManagedObjectContext) {

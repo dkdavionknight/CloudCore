@@ -84,9 +84,6 @@ class FetchRecordZoneChangesOperation: Operation {
                 self.errorBlock?(error)
             }
         }
-        fetchOperation.recordZoneChangeTokensUpdatedBlock = {
-            print("### recordZoneChangeTokensUpdatedBlock: \($0), \(String(describing: $1)), \(String(describing: $2))")
-        }
         fetchOperation.fetchRecordZoneChangesCompletionBlock = { [unowned fetchOperation] in
             if fetchOperation.isCancelled { return }
 

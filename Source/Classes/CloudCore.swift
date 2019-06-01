@@ -144,18 +144,18 @@ open class CloudCore {
         }
         config.container.privateCloudDatabase.add(recordZoneOperation)
     }
-    
+
     // MARK: Fetchers
 
     /** Fetch changes from one CloudKit database and save it to CoreData from `didReceiveRemoteNotification` method.
 
-    Don't forget to check notification's UserInfo by calling `isCloudCoreNotification(withUserInfo:)`. If incorrect user info is provided `PullResult.noData` will be returned at completion block.
+     Don't forget to check notification's UserInfo by calling `isCloudCoreNotification(withUserInfo:)`. If incorrect user info is provided `PullResult.noData` will be returned at completion block.
 
-    - Parameters:
-        - userInfo: notification's user info, CloudKit database will be extraced from that notification
-        - container: `NSPersistentContainer` that will be used to save fetched data
-        - error: block will be called every time when error occurs during process
-        - completion: `PullResult` enumeration with results of operation
+     - Parameters:
+         - userInfo: notification's user info, CloudKit database will be extraced from that notification
+         - container: `NSPersistentContainer` that will be used to save fetched data
+         - error: block will be called every time when error occurs during process
+         - completion: `PullResult` enumeration with results of operation
     */
     public static func pull(using userInfo: NotificationUserInfo, to container: NSPersistentContainer, error: ErrorBlock?, completion: @escaping (_ fetchResult: PullResult) -> Void) {
         print("### pull \(String(describing: userInfo))")
@@ -181,16 +181,21 @@ open class CloudCore {
 
     /** Fetch changes from all CloudKit databases and save it to Core Data
 
-    - Parameters:
-        - container: `NSPersistentContainer` that will be used to save fetched data
-        - error: block will be called every time when error occurs during process
-        - completion: `PullResult` enumeration with results of operation
+     - Parameters:
+         - container: `NSPersistentContainer` that will be used to save fetched data
+         - error: block will be called every time when error occurs during process
+         - completion: `PullResult` enumeration with results of operation
     */
     public static func pull(to container: NSPersistentContainer, completion: (() -> Void)?) {
         print("### pull(to container: NSPersistentContainer, error: ErrorBlock?, completion: (() -> Void)?)")
-        let operation = makePullOperation(persistentContainer: container)
-        operation.completionBlock = completion
-        queue.addOperation(operation)
+        if isQueueContainsPullOperation() {
+            print("### PullOperation already running")
+        }
+        else {
+            let operation = makePullOperation(persistentContainer: container)
+            operation.completionBlock = completion
+            queue.addOperation(operation)
+        }
     }
 
     /** Check if notification is CloudKit notification containing CloudCore data
@@ -217,8 +222,10 @@ open class CloudCore {
     // MARK: Share
 
     public static func getShare(object: NSManagedObject, completionHandler: @escaping ((CKRecord?, CKShare?)?, Error?) -> Void) {
-        let record = try! object.restoreRecordWithSystemFields(for: .private)!
-        let operation = FetchShareRecordOperation(recordID: record.recordID)
+        let recordID = try! object.restoreRecordWithSystemFields(for: .private)!.recordID
+        let database = recordID.zoneID.ownerName == CKCurrentUserDefaultName ? config.container.privateCloudDatabase :
+            config.container.sharedCloudDatabase
+        let operation = FetchShareRecordOperation(recordID: recordID, database: database)
         operation.completionBlock = { [unowned operation] in
             if let error = operation.error {
                 completionHandler(nil, error)
@@ -246,7 +253,8 @@ open class CloudCore {
                 completionHandler(($0?.first as! CKShare), config.container, nil)
             }
         }
-        operation.database = config.container.privateCloudDatabase
+        operation.database = record.recordID.zoneID.ownerName == CKCurrentUserDefaultName ? config.container.privateCloudDatabase :
+            config.container.sharedCloudDatabase
         queue.addOperation(operation)
     }
 
@@ -254,12 +262,33 @@ open class CloudCore {
         let acceptShareOperation: CKAcceptSharesOperation = CKAcceptSharesOperation(shareMetadatas: [shareMetadata])
         acceptShareOperation.qualityOfService = .userInteractive
         acceptShareOperation.acceptSharesCompletionBlock = {
-            if let container = coreDataObserver?.container {
+            if $0 == nil, let container = coreDataObserver?.container {
                 pull(to: container, completion: nil)
             }
             completionHandler($0)
         }
         config.container.add(acceptShareOperation)
+    }
+
+    public static func removeShare(object: NSManagedObject, completionHandler: @escaping (Error?) -> Void) {
+        let objectID = object.objectID
+        if let container = coreDataObserver?.container {
+            pull(to: container, completion: nil)
+            container.performBackgroundTask { context in
+                let object = context.object(with: objectID)
+                context.delete(object)
+                do {
+                    try context.save()
+                    completionHandler(nil)
+                }
+                catch {
+                    completionHandler(error)
+                }
+            }
+        }
+        else {
+            completionHandler(nil)
+        }
     }
 
     static private func handle(subscriptionError: Error, container: NSPersistentContainer) {
