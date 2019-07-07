@@ -43,10 +43,7 @@ public struct CloudCoreConfig {
     }
 	let subscriptionIDForPrivateDB = "CloudCorePrivate"
 	let subscriptionIDForSharedDB = "CloudCoreShared"
-	
-	/// subscriptionID's prefix for custom CKSubscription in public databases
-	var publicSubscriptionIDPrefix = "CloudCore-"
-	
+
 	// MARK: Core Data
     public let pushContextName = "CloudCorePushContext"
     let pullContextName = "CloudCorePullContext"
@@ -61,16 +58,11 @@ public struct CloudCoreConfig {
     /// Default value is `recordName`
     public var defaultAttributeNameOwnerName = "ownerName"
     
-    /// Default entity's attribute name for *Private Record Data* if User Info is not specified
+    /// Default entity's attribute name for *Record Data* if User Info is not specified
     ///
-    /// Default value is `privateRecordData`
-    public var defaultAttributeNamePrivateRecordData = "privateRecordData"
-        
-    /// Default entity's attribute name for *Public Record Data* if User Info is not specified
-    ///
-    /// Default value is `publicRecordData`
-    public var defaultAttributeNamePublicRecordData = "publicRecordData"
-    
+    /// Default value is `recordData`
+    public var defaultAttributeNameRecordData = "recordData"
+
 	// MARK: Metadata
 	
 	/// Metadata's key to store `Tokens` object

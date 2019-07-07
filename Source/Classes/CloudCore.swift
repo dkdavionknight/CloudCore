@@ -214,7 +214,6 @@ open class CloudCore {
         switch id {
         case config.subscriptionIDForPrivateDB: return config.container.privateCloudDatabase
         case config.subscriptionIDForSharedDB: return config.container.sharedCloudDatabase
-        case _ where id.hasPrefix(config.publicSubscriptionIDPrefix): return config.container.publicCloudDatabase
         default: return nil
         }
     }
