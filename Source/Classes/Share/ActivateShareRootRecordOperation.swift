@@ -28,12 +28,12 @@ class ActivateShareRootRecordOperation: Operation {
 
         // Try to find existing objects
         let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
-        fetchRequest.predicate = NSPredicate(format: "%K == %@ AND %K == %@", serviceAttributes.recordName, record.recordID.recordName,
-            serviceAttributes.ownerName, record.recordID.zoneID.ownerName)
+        fetchRequest.predicate = NSPredicate(format: "%K == %@ AND %K == %@ AND %K == YES", serviceAttributes.recordName,
+            record.recordID.recordName, serviceAttributes.ownerName, record.recordID.zoneID.ownerName,
+            serviceAttributes.markedForDeletion)
 
         guard let object = try context.fetch(fetchRequest).first as? NSManagedObject else { return }
         object.setValue(false, forKey: serviceAttributes.markedForDeletion)
-        try context.save()
     }
 
     override func main() {
