@@ -15,10 +15,10 @@ extension NSManagedObject {
 	/// - Returns: unacrhived `CKRecord` containing restored system fields (like RecordID, tokens, creationg date etc)
 	/// - Throws: `CloudCoreError.missingServiceAttributes` if names of CloudCore attributes are not specified in User Info
     public func restoreRecordWithSystemFields(for scope: CKDatabase.Scope) throws -> CKRecord? {
-		guard let serviceAttributeNames = self.entity.serviceAttributeNames else {
-			throw CloudCoreError.missingServiceAttributes(entityName: self.entity.name)
+		guard let serviceAttributeNames = entity.serviceAttributeNames else {
+			throw CloudCoreError.missingServiceAttributes(entityName: entity.name)
 		}
-		guard let encodedRecordData = self.value(forKey: serviceAttributeNames.recordData) as? Data else { return nil }
+		guard let encodedRecordData = value(forKey: serviceAttributeNames.recordData) as? Data else { return nil }
 		
 		return CKRecord(archivedData: encodedRecordData)
 	}
@@ -29,27 +29,27 @@ extension NSManagedObject {
 	/// - Throws: may throw exception if unable to find attributes marked by User Info as service attributes
 	/// - Returns: new `CKRecord`
     @discardableResult func setRecordInformation(for scope: CKDatabase.Scope) throws -> CKRecord {
-		guard let entityName = self.entity.name else {
-			throw CloudCoreError.coreData("No entity name for \(self.entity)")
+		guard let entityName = entity.name else {
+			throw CloudCoreError.coreData("No entity name for \(entity)")
 		}
-		guard let serviceAttributeNames = self.entity.serviceAttributeNames else {
-			throw CloudCoreError.missingServiceAttributes(entityName: self.entity.name)
+		guard let serviceAttributeNames = entity.serviceAttributeNames else {
+			throw CloudCoreError.missingServiceAttributes(entityName: entity.name)
 		}
         
-        var recordName = self.value(forKey: serviceAttributeNames.recordName) as? String
+        var recordName = value(forKey: serviceAttributeNames.recordName) as? String
         if recordName == nil {
             recordName = UUID().uuidString
-            self.setValue(recordName, forKey: serviceAttributeNames.recordName)
+            setValue(recordName, forKey: serviceAttributeNames.recordName)
         }
         
-        let zoneID = CKRecordZone.ID(zoneName: CloudCore.config.zoneName, ownerName: self.sharingOwnerName)
+        let zoneID = CKRecordZone.ID(zoneName: CloudCore.config.zoneName, ownerName: sharingOwnerName)
         let recordID = CKRecord.ID(recordName: recordName!, zoneID: zoneID)
         let record = CKRecord(recordType: entityName, recordID: recordID)
-        self.setValue(record.encdodedSystemFields, forKey: serviceAttributeNames.recordData)
+        setValue(record.encdodedSystemFields, forKey: serviceAttributeNames.recordData)
 
-        let ownerName = self.value(forKey: serviceAttributeNames.ownerName) as? String
+        let ownerName = value(forKey: serviceAttributeNames.ownerName) as? String
         if ownerName == nil {
-            self.setValue(record.recordID.zoneID.ownerName, forKey: serviceAttributeNames.ownerName)
+            setValue(record.recordID.zoneID.ownerName, forKey: serviceAttributeNames.ownerName)
         }
 
 		return record

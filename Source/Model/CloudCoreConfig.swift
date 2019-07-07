@@ -63,6 +63,11 @@ public struct CloudCoreConfig {
     /// Default value is `recordData`
     public var defaultAttributeNameRecordData = "recordData"
 
+    /// Default entity's attribute name for *Marked For Deletion* if User Info is not specified
+    ///
+    /// Default value is `markedForDeletion`
+    public var defaultAttributeNameMarkedForDeletion = "markedForDeletion"
+
 	// MARK: Metadata
 	
 	/// Metadata's key to store `Tokens` object

@@ -11,9 +11,9 @@ import CloudKit
 
 extension NSEntityDescription {
 	var serviceAttributeNames: ServiceAttributeNames? {
-		guard let entityName = self.name else { return nil }
+		guard let entityName = name else { return nil }
 		
-		let attributeNamesFromUserInfo = self.parseAttributeNamesFromUserInfo()
+		let attributeNamesFromUserInfo = parseAttributeNamesFromUserInfo()
 		
 		// Get required attributes
         // Record Name
@@ -22,7 +22,7 @@ extension NSEntityDescription {
             recordNameAttribute = recordNameUserInfoName
         } else {
             // Last chance: try to find default attribute name in entity
-            if self.attributesByName.keys.contains(CloudCore.config.defaultAttributeNameRecordName) {
+            if attributesByName.keys.contains(CloudCore.config.defaultAttributeNameRecordName) {
                 recordNameAttribute = CloudCore.config.defaultAttributeNameRecordName
             } else {
                 return nil
@@ -35,39 +35,50 @@ extension NSEntityDescription {
             ownerNameAttribute = ownerNameUserInfoName
         } else {
             // Last chance: try to find default attribute name in entity
-            if self.attributesByName.keys.contains(CloudCore.config.defaultAttributeNameOwnerName) {
+            if attributesByName.keys.contains(CloudCore.config.defaultAttributeNameOwnerName) {
                 ownerNameAttribute = CloudCore.config.defaultAttributeNameOwnerName
             } else {
                 return nil
             }
         }
         
-        // Private Record Data
+        // Record Data
         let recordDataAttribute: String
         if let recordDataUserInfoName = attributeNamesFromUserInfo.recordData {
             recordDataAttribute = recordDataUserInfoName
         } else {
             // Last chance: try to find default attribute name in entity
-            if self.attributesByName.keys.contains(CloudCore.config.defaultAttributeNameRecordData) {
+            if attributesByName.keys.contains(CloudCore.config.defaultAttributeNameRecordData) {
                 recordDataAttribute = CloudCore.config.defaultAttributeNameRecordData
             } else {
                 return nil
             }
         }
 
+        // Mark For Deletion
+        let markedForDeletionAttribute: String
+        if let markedForDeletionUserInfoName = attributeNamesFromUserInfo.markedForDeletion {
+            markedForDeletionAttribute = markedForDeletionUserInfoName
+        } else {
+            // Use default attribute name
+            markedForDeletionAttribute = CloudCore.config.defaultAttributeNameMarkedForDeletion
+        }
+
         return ServiceAttributeNames(entityName: entityName,
                                      scopes: attributeNamesFromUserInfo.scopes,
                                      recordName: recordNameAttribute,
                                      ownerName: ownerNameAttribute,
-                                     recordData: recordDataAttribute)
+                                     recordData: recordDataAttribute,
+                                     markedForDeletion: markedForDeletionAttribute)
 	}
 	
 	/// Parse data from User Info dictionary
-    private func parseAttributeNamesFromUserInfo() -> (scopes: [CKDatabase.Scope], recordName: String?, ownerName: String?, recordData: String?) {
+    private func parseAttributeNamesFromUserInfo() -> (scopes: [CKDatabase.Scope], recordName: String?, ownerName: String?, recordData: String?, markedForDeletion: String?) {
         var scopes: [CKDatabase.Scope] = []
         var recordNameAttribute: String?
         var ownerNameAttribute: String?
         var recordDataAttribute: String?
+        var markedForDeletionAttribute: String?
 
         func parse(_ attributeName: String, _ userInfo: [AnyHashable: Any]) {
             for (key, value) in userInfo {
@@ -79,6 +90,7 @@ extension NSEntityDescription {
                     case ServiceAttributeNames.valueRecordName: recordNameAttribute = attributeName
                     case ServiceAttributeNames.valueOwnerName: ownerNameAttribute = attributeName
                     case ServiceAttributeNames.valueRecordData: recordDataAttribute = attributeName
+                    case ServiceAttributeNames.valueMarkedForDeletion: markedForDeletionAttribute = attributeName
                     default: continue
                     }
                 } else if key == ServiceAttributeNames.keyScopes {
@@ -105,7 +117,7 @@ extension NSEntityDescription {
 			parse(attributeName, userInfo)
 		}
 		
-		return (scopes, recordNameAttribute, ownerNameAttribute, recordDataAttribute)
+		return (scopes, recordNameAttribute, ownerNameAttribute, recordDataAttribute, markedForDeletionAttribute)
 	}
 	
 }

@@ -269,33 +269,35 @@ open class CloudCore {
         config.container.add(acceptShareOperation)
     }
 
-    public static func removeShare(object: NSManagedObject, completionHandler: @escaping (Error?) -> Void) {
-        if let container = coreDataObserver?.container {
-            let recordID = try! object.restoreRecordWithSystemFields(for: .private)!.recordID
-            let token = tokens.tokensByRecordZoneID[recordID.zoneID]
-            pull(to: container) {
-                guard token == tokens.tokensByRecordZoneID[recordID.zoneID] else { return }
-                // repeat the pull operation after 3 seconds to attempt to capture the database change
-                DispatchQueue.global().asyncAfter(deadline: .now() + 3) {
-                    pull(to: container, completion: nil)
-                }
+    public static func stopShare(object: NSManagedObject, completionHandler: @escaping (Error?) -> Void) {
+        let objectID = object.objectID
+        coreDataObserver!.container.performBackgroundTask { context in
+            let object = context.object(with: objectID)
+            object.setValue(true, forKey: config.defaultAttributeNameMarkedForDeletion)
+            var localError: Error?
+            do {
+                try context.save()
             }
-            let objectID = object.objectID
-            container.performBackgroundTask { context in
-                let object = context.object(with: objectID)
-                context.delete(object)
-                do {
-                    try context.save()
-                    completionHandler(nil)
-                }
-                catch {
-                    completionHandler(error)
-                }
+            catch {
+                localError = error
+            }
+            OperationQueue.main.addOperation {
+                completionHandler(localError)
             }
         }
-        else {
-            completionHandler(nil)
+    }
+
+    public static func leaveShare(object: NSManagedObject, completionHandler: @escaping (Error?) -> Void) {
+        let recordID = try! object.restoreRecordWithSystemFields(for: .private)!.recordID
+        let database = recordID.zoneID.ownerName == CKCurrentUserDefaultName ? config.container.privateCloudDatabase :
+            config.container.sharedCloudDatabase
+        let leaveShareOperation = LeaveShareOperation(recordID: recordID, database: database)
+        leaveShareOperation.completionBlock = { [unowned leaveShareOperation] in
+            guard !leaveShareOperation.isCancelled || leaveShareOperation.error != nil
+                else { completionHandler(leaveShareOperation.error); return }
+            stopShare(object: object, completionHandler: completionHandler)
         }
+        queue.addOperation(leaveShareOperation)
     }
 
     static private func handle(subscriptionError: Error, container: NSPersistentContainer) {

@@ -126,6 +126,12 @@ public class PullOperation: Operation {
         queue.addOperation(operation)
     }
 
+    private func addActivateShareRootRecordOperation(share: CKShare, context: NSManagedObjectContext, queue: OperationQueue) {
+        let activateOperation = ActivateShareRootRecordOperation(parentContext: context, share: share)
+        activateOperation.errorBlock = { self.errorBlock?($0) }
+        queue.addOperation(activateOperation)
+    }
+
     private func addDeleteRecordOperation(recordID: CKRecord.ID, context: NSManagedObjectContext, queue: OperationQueue) {
         // Delete NSManagedObject with specified recordID Operation
         let deleteOperation = DeleteFromCoreDataOperation(parentContext: context, recordID: recordID)
@@ -165,8 +171,13 @@ public class PullOperation: Operation {
 
         let recordZoneChangesOperation = FetchRecordZoneChangesOperation(from: database, recordZoneIDs: recordZoneIDs, tokens: tokens)
 
-        recordZoneChangesOperation.recordChangedBlock = { [unowned recordZoneChangesOperation] in
-            self.addConvertRecordOperation(record: $0, context: context, queue: recordZoneChangesOperation.queue)
+        recordZoneChangesOperation.recordChangedBlock = { [unowned recordZoneChangesOperation] record in
+            if let share = record as? CKShare {
+                self.addActivateShareRootRecordOperation(share: share, context: context, queue: recordZoneChangesOperation.queue)
+            }
+            else {
+                self.addConvertRecordOperation(record: record, context: context, queue: recordZoneChangesOperation.queue)
+            }
         }
 
         recordZoneChangesOperation.recordWithIDWasDeletedBlock = { [unowned recordZoneChangesOperation] in
