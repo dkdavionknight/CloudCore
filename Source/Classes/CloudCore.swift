@@ -260,12 +260,7 @@ open class CloudCore {
     public static func acceptShare(shareMetadata: CKShare.Metadata, completionHandler: @escaping (Error?) -> Void) {
         let acceptShareOperation: CKAcceptSharesOperation = CKAcceptSharesOperation(shareMetadatas: [shareMetadata])
         acceptShareOperation.qualityOfService = .userInteractive
-        acceptShareOperation.acceptSharesCompletionBlock = {
-            if $0 == nil, let container = coreDataObserver?.container {
-                pull(to: container, completion: nil)
-            }
-            completionHandler($0)
-        }
+        acceptShareOperation.acceptSharesCompletionBlock = completionHandler
         config.container.add(acceptShareOperation)
     }
 
