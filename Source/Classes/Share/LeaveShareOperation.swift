@@ -1,16 +1,15 @@
 //
-//  FetchShareRecordOperation.swift
+//  LeaveShareOperation.swift
 //  CloudCore
 //
 
 import Foundation
 import CloudKit
 
-class FetchShareRecordOperation: Operation {
+class LeaveShareOperation: Operation {
 
     private(set) var error: Error?
-    private(set) var record: CKRecord?
-    private(set) var share: CKShare?
+    private var record: CKRecord?
 
     private let recordID: CKRecord.ID
     private let database: CKDatabase
@@ -28,17 +27,16 @@ class FetchShareRecordOperation: Operation {
             if ($1 as? CKError)?.code != .operationCancelled { self.error = $1 }
         }
 
-        let fetchShareOperation = CKFetchRecordsOperation()
-        fetchShareOperation.database = database
-        fetchShareOperation.qualityOfService = .userInteractive
-        fetchShareOperation.fetchRecordsCompletionBlock = { [unowned self] in
-            self.share = $0?.first?.value as? CKShare
-            if ($1 as? CKError)?.code != .operationCancelled { self.error = $1 }
+        let leaveShareOperation = CKModifyRecordsOperation()
+        leaveShareOperation.database = database
+        leaveShareOperation.qualityOfService = .userInteractive
+        leaveShareOperation.modifyRecordsCompletionBlock = { [unowned self] in
+            if ($2 as? CKError)?.code != .operationCancelled { self.error = $2 }
         }
 
-        let adapterOperation = BlockOperation() { [unowned fetchShareOperation, unowned self] in
+        let adapterOperation = BlockOperation() { [unowned leaveShareOperation, unowned self] in
             if let recordID = self.record?.share?.recordID {
-                fetchShareOperation.recordIDs = [recordID]
+                leaveShareOperation.recordIDsToDelete = [recordID]
             }
             else {
                 self.queue.cancelAllOperations()
@@ -46,9 +44,9 @@ class FetchShareRecordOperation: Operation {
         }
 
         adapterOperation.addDependency(fetchRecordOperation)
-        fetchShareOperation.addDependency(adapterOperation)
-
-        queue.addOperations([fetchRecordOperation, adapterOperation, fetchShareOperation], waitUntilFinished: true)
+        leaveShareOperation.addDependency(adapterOperation)
+        
+        queue.addOperations([fetchRecordOperation, adapterOperation, leaveShareOperation], waitUntilFinished: true)
     }
 
     // MARK: - Init

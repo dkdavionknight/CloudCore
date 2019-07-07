@@ -18,6 +18,7 @@ struct ServiceAttributeNames {
     static let valueRecordName = "recordName"
     static let valueOwnerName = "ownerName"
     static let valueRecordData = "recordData"
+    static let valueMarkedForDeletion = "markedForDeletion"
 
 	let entityName: String
     
@@ -26,10 +27,11 @@ struct ServiceAttributeNames {
     let recordName: String
     let ownerName: String
     let recordData: String
+    let markedForDeletion: String
 
     func contains(_ attributeName: String) -> Bool {
         switch attributeName {
-        case recordName, ownerName, recordData:
+        case recordName, ownerName, recordData, markedForDeletion:
             return true
         default:
             return false
