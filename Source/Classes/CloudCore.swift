@@ -220,7 +220,7 @@ open class CloudCore {
 
     // MARK: Share
 
-    public static func getShare(object: NSManagedObject, completionHandler: @escaping ((CKRecord?, CKShare?)?, Error?) -> Void) {
+    public static func fetchShare(for object: NSManagedObject, completionHandler: @escaping ((CKRecord?, CKShare?)?, Error?) -> Void) {
         let recordID = try! object.restoreRecordWithSystemFields(for: .private)!.recordID
         let database = recordID.zoneID.ownerName == CKCurrentUserDefaultName ? config.container.privateCloudDatabase :
             config.container.sharedCloudDatabase
@@ -233,27 +233,6 @@ open class CloudCore {
                 completionHandler((operation.record, operation.share), nil)
             }
         }
-        queue.addOperation(operation)
-    }
-
-    public static func share(title: String, imageData: Data?, record: CKRecord, completionHandler: @escaping (CKShare?, CKContainer?, Error?) -> Void) {
-        let shareRecord = CKShare(rootRecord: record)
-        shareRecord[CKShare.SystemFieldKey.title] = title
-        if let imageData = imageData {
-            shareRecord[CKShare.SystemFieldKey.thumbnailImageData] = imageData
-        }
-        let operation = CKModifyRecordsOperation(recordsToSave: [shareRecord, record])
-        operation.qualityOfService = .userInteractive
-        operation.modifyRecordsCompletionBlock = {
-            if let error = $2 {
-                completionHandler(nil, nil, error)
-            }
-            else {
-                completionHandler(($0?.first as! CKShare), config.container, nil)
-            }
-        }
-        operation.database = record.recordID.zoneID.ownerName == CKCurrentUserDefaultName ? config.container.privateCloudDatabase :
-            config.container.sharedCloudDatabase
         queue.addOperation(operation)
     }
 
