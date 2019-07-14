@@ -25,12 +25,12 @@ class CoreDataRelationshipTests: CoreDataTestCase {
         let filledObjectRecord = try! object.restoreRecordWithSystemFields(for: .private)!
 		
 		var manyUsers = [UserEntity]()
-		var manyUsersRecordsIDs = [CKRecordID]()
+		var manyUsersRecordsIDs = [CKRecord.ID]()
 		for _ in 0...2 {
 			let user = UserEntity(context: context)
             try! user.setRecordInformation(for: .private)
             let userRecord = try! user.restoreRecordWithSystemFields(for: .private)!
-			user.privateRecordData = userRecord.encdodedSystemFields
+			user.recordData = userRecord.encdodedSystemFields
 			
 			manyUsers.append(user)
 			manyUsersRecordsIDs.append(userRecord.recordID)
@@ -56,12 +56,12 @@ class CoreDataRelationshipTests: CoreDataTestCase {
 		}
 		
 		// Check single relationship
-		let singleReference = filledObjectRecord.value(forKey: "singleRelationship") as! CKReference
+		let singleReference = filledObjectRecord.value(forKey: "singleRelationship") as! CKRecord.Reference
 		XCTAssertEqual(manyUsersRecordsIDs[0], singleReference.recordID)
 		
 		// Check many relationships
-		let multipleReferences = filledObjectRecord.value(forKey: "manyRelationship") as! [CKReference]
-		var filledRecordRelationshipIDs = [CKRecordID]()
+		let multipleReferences = filledObjectRecord.value(forKey: "manyRelationship") as! [CKRecord.Reference]
+		var filledRecordRelationshipIDs = [CKRecord.ID]()
 		
 		for recordReference in multipleReferences {
 			filledRecordRelationshipIDs.append(recordReference.recordID)

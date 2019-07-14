@@ -2,6 +2,8 @@
 //  FetchShareRecordOperation.swift
 //  CloudCore
 //
+//  Created by Davion Knight on 30/05/2019.
+//
 
 import Foundation
 import CloudKit

@@ -22,7 +22,15 @@ class FetchRecordZoneChangesOperation: Operation {
     var isMoreComing = false
     var serverChangeTokens = [CKRecordZone.ID: CKServerChangeToken]()
 
-    private let configurationsByRecordZoneID: [CKRecordZone.ID: CKFetchRecordZoneChangesOperation.ZoneConfiguration]
+    @available(iOS, introduced: 10.0, deprecated: 12.0)
+    @available(OSX, introduced: 10.12, deprecated: 10.14)
+    @available(tvOS, introduced: 10.0, deprecated: 12.0)
+    @available(watchOS, introduced: 3.0, deprecated: 5.0)
+    lazy private var optionsByRecordZoneID = [CKRecordZone.ID: CKFetchRecordZoneChangesOperation.ZoneOptions]()
+
+    @available(iOS 12.0, OSX 10.14, tvOS 12.0, watchOS 5.0, *)
+    lazy private var configurationsByRecordZoneID = [CKRecordZone.ID: CKFetchRecordZoneChangesOperation.ZoneConfiguration]()
+
     let queue = OperationQueue()
 
     init(from database: CKDatabase, recordZoneIDs: [CKRecordZone.ID], tokens: Tokens) {
@@ -30,15 +38,26 @@ class FetchRecordZoneChangesOperation: Operation {
         self.database = database
         self.recordZoneIDs = recordZoneIDs
 
-        var configurationsByRecordZoneID = [CKRecordZone.ID: CKFetchRecordZoneChangesOperation.ZoneConfiguration]()
-        for zoneID in recordZoneIDs {
-            let configuration = CKFetchRecordZoneChangesOperation.ZoneConfiguration()
-            configuration.previousServerChangeToken = self.tokens.tokensByRecordZoneID[zoneID]
-            configurationsByRecordZoneID[zoneID] = configuration
-        }
-        self.configurationsByRecordZoneID = configurationsByRecordZoneID
-
         super.init()
+        
+        if #available(iOS 12.0, OSX 10.14, tvOS 12.0, watchOS 5.0, *) {
+            var configurationsByRecordZoneID = [CKRecordZone.ID: CKFetchRecordZoneChangesOperation.ZoneConfiguration]()
+            for zoneID in recordZoneIDs {
+                let configuration = CKFetchRecordZoneChangesOperation.ZoneConfiguration()
+                configuration.previousServerChangeToken = self.tokens.tokensByRecordZoneID[zoneID]
+                configurationsByRecordZoneID[zoneID] = configuration
+            }
+            self.configurationsByRecordZoneID = configurationsByRecordZoneID
+        }
+        else {
+            var optionsByRecordZoneID = [CKRecordZone.ID: CKFetchRecordZoneChangesOperation.ZoneOptions]()
+            for zoneID in recordZoneIDs {
+                let options = CKFetchRecordZoneChangesOperation.ZoneOptions()
+                options.previousServerChangeToken = self.tokens.tokensByRecordZoneID[zoneID]
+                optionsByRecordZoneID[zoneID] = options
+            }
+            self.optionsByRecordZoneID = optionsByRecordZoneID
+        }
 
         self.name = "FetchRecordZoneChangesOperation"
     }
@@ -46,15 +65,19 @@ class FetchRecordZoneChangesOperation: Operation {
     override func main() {
         super.main()
 
-        let fetchOperation = self.makeFetchOperation(configurationsByRecordZoneID: configurationsByRecordZoneID)
-        queue.addOperation(fetchOperation)
-
+        queue.addOperation(makeFetchOperation())
         queue.waitUntilAllOperationsAreFinished()
     }
 
-    private func makeFetchOperation(configurationsByRecordZoneID: [CKRecordZone.ID: CKFetchRecordZoneChangesOperation.ZoneConfiguration]) -> CKFetchRecordZoneChangesOperation {
+    private func makeFetchOperation() -> CKFetchRecordZoneChangesOperation {
+        let fetchOperation: CKFetchRecordZoneChangesOperation
         // Init Fetch Operation
-        let fetchOperation = CKFetchRecordZoneChangesOperation(recordZoneIDs: recordZoneIDs, configurationsByRecordZoneID: configurationsByRecordZoneID)
+        if #available(iOS 12.0, OSX 10.14, tvOS 12.0, watchOS 5.0, *) {
+            fetchOperation = CKFetchRecordZoneChangesOperation(recordZoneIDs: recordZoneIDs, configurationsByRecordZoneID: configurationsByRecordZoneID)
+        }
+        else {
+            fetchOperation = CKFetchRecordZoneChangesOperation(recordZoneIDs: recordZoneIDs, optionsByRecordZoneID: optionsByRecordZoneID)
+        }
 
         fetchOperation.recordChangedBlock = { [unowned fetchOperation] in
             if fetchOperation.isCancelled { return }
@@ -94,7 +117,7 @@ class FetchRecordZoneChangesOperation: Operation {
                 if ckError.code == .networkFailure {
                     self.queue.cancelAllOperations()
                     self.reset?()
-                    let retryOperation = self.makeFetchOperation(configurationsByRecordZoneID: configurationsByRecordZoneID)
+                    let retryOperation = self.makeFetchOperation()
                     self.queue.addOperation(retryOperation)
                 }
                 else if ckError.code == .userDeletedZone || ckError.code == .changeTokenExpired {
