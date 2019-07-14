@@ -2,6 +2,8 @@
 //  LeaveShareOperation.swift
 //  CloudCore
 //
+//  Created by Davion Knight on 07/07/2019.
+//
 
 import Foundation
 import CloudKit
