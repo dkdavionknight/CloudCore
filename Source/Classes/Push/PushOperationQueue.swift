@@ -7,10 +7,10 @@
 //
 
 import CloudKit
-import CoreData
 
 class PushOperationQueue: OperationQueue {
 	var errorBlock: ErrorBlock?
+    var saveBlock: ((CKRecord) -> Void)?
 
 	/// Modify CloudKit database, operations will be created and added to operation queue.
 	func addOperations(recordsToSave: [RecordWithDatabase], recordIDsToDelete: [RecordIDWithDatabase]) {
@@ -47,12 +47,12 @@ class PushOperationQueue: OperationQueue {
     private func addOperation(recordsToSave: [CKRecord], recordIDsToDelete: [CKRecord.ID], database: CKDatabase) {
 		// Modify CKRecord Operation
 		let modifyOperation = CKModifyRecordsOperation(recordsToSave: recordsToSave, recordIDsToDelete: recordIDsToDelete)
-		modifyOperation.savePolicy = .changedKeys
 
 		modifyOperation.perRecordCompletionBlock = { record, error in
 			if let error = error {
 				self.errorBlock?(error)
 			} else {
+                self.saveBlock?(record)
 				self.removeCachedAssets(for: record)
 			}
 		}
