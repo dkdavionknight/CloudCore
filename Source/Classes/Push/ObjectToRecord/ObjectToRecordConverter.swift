@@ -86,7 +86,7 @@ class ObjectToRecordConverter {
 
                         let targetScope = me.targetScope(for: scope, and: object)
                         let cloudDatabase = me.database(for: targetScope)
-                        let recordWithDB = RecordWithDatabase(record, cloudDatabase)
+                        let recordWithDB = RecordWithDatabase(record: record, database: cloudDatabase)
                         me.convertedRecords.append(recordWithDB)
                     }
 
@@ -111,7 +111,7 @@ class ObjectToRecordConverter {
                 let restoredRecord = triedRestoredRecord
                 let targetScope = self.targetScope(for: scope, and: object)
                 let database = self.database(for: targetScope)
-                let recordIDWithDB = RecordIDWithDatabase(restoredRecord.recordID, database)
+                let recordIDWithDB = RecordIDWithDatabase(recordID: restoredRecord.recordID, database: database)
                 recordIDs.append(recordIDWithDB)
             }
 		}

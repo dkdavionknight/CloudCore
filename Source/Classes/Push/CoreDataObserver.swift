@@ -90,6 +90,11 @@ class CoreDataObserver {
         backgroundContext.name = cloudContextName
 
         let records = converter.processPendingOperations(in: backgroundContext)
+        pushOperationQueue.saveBlock = { record in
+            backgroundContext.performAndWait {
+                self.updateRecordData(for: record, context: backgroundContext)
+            }
+        }
         pushOperationQueue.errorBlock = {
             self.handle(error: $0, parentContext: backgroundContext)
             success = false
@@ -196,7 +201,7 @@ class CoreDataObserver {
                                 if let recordData = change.tombstone!["recordData"] as? Data {
                                     let ckRecord = CKRecord(archivedData: recordData)
                                     let database = ckRecord?.recordID.zoneID.ownerName == CKCurrentUserDefaultName ? CloudCore.config.container.privateCloudDatabase : CloudCore.config.container.sharedCloudDatabase
-                                    let recordIDWithDatabase = RecordIDWithDatabase((ckRecord?.recordID)!, database)
+                                    let recordIDWithDatabase = RecordIDWithDatabase(recordID: (ckRecord?.recordID)!, database: database)
                                     deletedRecordIDs.append(recordIDWithDatabase)
                                 }
                             }
@@ -253,6 +258,14 @@ class CoreDataObserver {
                 }
             }
         }
+    }
+
+    private func updateRecordData(for record: CKRecord, context: NSManagedObjectContext) {
+        guard let entity = container.managedObjectModel.entitiesByName[record.recordType],
+            let serviceAttributeNames = entity.serviceAttributeNames,
+            let object = try? context.fetchObject(for: record, recordNameKey: serviceAttributeNames.recordName)
+            else { return }
+        object.setValue(record.encdodedSystemFields, forKey: serviceAttributeNames.recordData)
     }
 
     private func handle(error: Error, parentContext: NSManagedObjectContext) {

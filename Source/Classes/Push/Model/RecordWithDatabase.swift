@@ -8,12 +8,7 @@
 
 import CloudKit
 
-class RecordWithDatabase {
+struct RecordWithDatabase {
 	let record: CKRecord
 	let database: CKDatabase
-
-	init(_ record: CKRecord, _ database: CKDatabase) {
-		self.record = record
-		self.database = database
-	}
 }
