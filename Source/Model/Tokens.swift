@@ -18,7 +18,9 @@ import CoreData
  * tokens per record inside *Record Data* attribute, it is managed automatically you don't need to take any actions about that token
  */
 
-open class Tokens: NSObject, NSCoding {
+open class Tokens: NSObject, NSSecureCoding {
+
+    public static var supportsSecureCoding: Bool { return true }
 
     var tokensByDatabaseScope = [Int: CKServerChangeToken]()
     var tokensByRecordZoneID = [CKRecordZone.ID: CKServerChangeToken]()
@@ -40,16 +42,14 @@ open class Tokens: NSObject, NSCoding {
     /// - Returns: previously saved `Token` object, if tokens weren't saved before newly initialized `Tokens` object will be returned
     public static func loadFromContainer(_ container: NSPersistentContainer) -> Tokens {
         guard let tokensData = container.persistentStoreCoordinator.metadataValue(forKey: CloudCore.config.metadataKeyTokens) as? Data,
-            let unarchiver = try? NSKeyedUnarchiver(forReadingFrom: tokensData)
+            let tokens = try? NSKeyedUnarchiver.unarchivedObject(ofClass: Tokens.self, from: tokensData)
             else { return Tokens() }
-
-        unarchiver.requiresSecureCoding = false
-        return unarchiver.decodeObject(forKey: NSKeyedArchiveRootObjectKey) as? Tokens ?? Tokens()
+        return tokens
     }
 
     /// Save tokens to PersistentStore Metadata. Key is used from `CloudCoreConfig.userDefaultsKeyTokens`
     open func saveToContainer(_ container: NSPersistentContainer) {
-        let tokensData = try? NSKeyedArchiver.archivedData(withRootObject: self, requiringSecureCoding: false)
+        let tokensData = try? NSKeyedArchiver.archivedData(withRootObject: self, requiringSecureCoding: true)
         container.persistentStoreCoordinator.setMetadataValue(tokensData, forKey: CloudCore.config.metadataKeyTokens)
     }
 
@@ -57,10 +57,10 @@ open class Tokens: NSObject, NSCoding {
 
     ///    Returns an object initialized from data in a given unarchiver.
     public required init?(coder aDecoder: NSCoder) {
-        if let decodedTokensByScope = aDecoder.decodeObject(forKey: ArchiverKey.tokensByDatabaseScope) as? [Int: CKServerChangeToken] {
+        if let decodedTokensByScope = aDecoder.decodeObject(of: [NSDictionary.self, CKServerChangeToken.self], forKey: ArchiverKey.tokensByDatabaseScope) as? [Int: CKServerChangeToken] {
             self.tokensByDatabaseScope = decodedTokensByScope
         }
-        if let decodedTokensByZone = aDecoder.decodeObject(forKey: ArchiverKey.tokensByRecordZoneID) as? [CKRecordZone.ID: CKServerChangeToken] {
+        if let decodedTokensByZone = aDecoder.decodeObject(of: [NSDictionary.self, CKRecordZone.ID.self, CKServerChangeToken.self], forKey: ArchiverKey.tokensByRecordZoneID) as? [CKRecordZone.ID: CKServerChangeToken] {
             self.tokensByRecordZoneID = decodedTokensByZone
         }
     }
