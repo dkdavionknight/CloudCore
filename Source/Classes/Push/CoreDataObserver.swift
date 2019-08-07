@@ -226,9 +226,9 @@ class CoreDataObserver {
 
             container.performBackgroundTask { (moc) in
                 let key = "lastPersistentHistoryTokenKey"
-                var token: NSPersistentHistoryToken? = nil
+                var token: NSPersistentHistoryToken?
                 if let data = moc.persistentStoreCoordinator!.metadataValue(forKey: key) as? Data {
-                     token = (try? NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSData.self], from: data)) as? NSPersistentHistoryToken
+                     token = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSPersistentHistoryToken.self, from: data)
                 }
                 let historyRequest = NSPersistentHistoryChangeRequest.fetchHistory(after: token)
                 do {
@@ -240,7 +240,7 @@ class CoreDataObserver {
                                 let deleteRequest = NSPersistentHistoryChangeRequest.deleteHistory(before: transaction)
                                 try moc.execute(deleteRequest)
 
-                                let data = try NSKeyedArchiver.archivedData(withRootObject: transaction.token, requiringSecureCoding: false)
+                                let data = try NSKeyedArchiver.archivedData(withRootObject: transaction.token, requiringSecureCoding: true)
                                 moc.persistentStoreCoordinator!.setMetadataValue(data, forKey: key)
                             } else {
                                 break
