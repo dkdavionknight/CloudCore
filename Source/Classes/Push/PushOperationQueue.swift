@@ -49,7 +49,9 @@ class PushOperationQueue: OperationQueue {
 		let modifyOperation = CKModifyRecordsOperation(recordsToSave: recordsToSave, recordIDsToDelete: recordIDsToDelete)
 
 		modifyOperation.perRecordCompletionBlock = { record, error in
-			if let error = error {
+			if let error = error as? CKError,
+                error.code != .serverRecordChanged
+            {
 				self.errorBlock?(error)
 			} else {
                 self.saveBlock?(record)
@@ -58,7 +60,9 @@ class PushOperationQueue: OperationQueue {
 		}
 
 		modifyOperation.modifyRecordsCompletionBlock = { _, _, error in
-			if let error = error {
+			if let error = error as? CKError,
+                error.code != .partialFailure
+            {
 				self.errorBlock?(error)
 			}
 		}
