@@ -43,7 +43,10 @@ public struct CloudCoreConfig {
     }
 	let subscriptionIDForPrivateDB = "CloudCorePrivate"
 	let subscriptionIDForSharedDB = "CloudCoreShared"
-
+	
+	/// subscriptionID's prefix for custom CKSubscription in public databases
+	var publicSubscriptionIDPrefix = "CloudCore-"
+	
 	// MARK: Core Data
     public let pushContextName = "CloudCorePushContext"
     let pullContextName = "CloudCorePullContext"
@@ -62,19 +65,19 @@ public struct CloudCoreConfig {
     ///
     /// Default value is `recordData`
     public var defaultAttributeNameRecordData = "recordData"
-
+        
     /// Default entity's attribute name for *Marked For Deletion* if User Info is not specified
     ///
     /// Default value is `markedForDeletion`
     public var defaultAttributeNameMarkedForDeletion = "markedForDeletion"
 
-	// MARK: Metadata
-	
-	/// Metadata's key to store `Tokens` object
-	///
-	/// Default value is `CloudCoreTokens`
-	public var metadataKeyTokens = "CloudCoreTokens"
+    // MARK: Metadata
+
+    /// Metadata's key to store `Tokens` object
+    ///
+    /// Default value is `CloudCoreTokens`
+    public var metadataKeyTokens = "CloudCoreTokens"
 
     public var isDeleting = false
-    
+
 }

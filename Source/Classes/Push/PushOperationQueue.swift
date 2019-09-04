@@ -11,11 +11,11 @@ import CloudKit
 class PushOperationQueue: OperationQueue {
 	var errorBlock: ErrorBlock?
     var saveBlock: ((CKRecord) -> Void)?
-
+	
 	/// Modify CloudKit database, operations will be created and added to operation queue.
 	func addOperations(recordsToSave: [RecordWithDatabase], recordIDsToDelete: [RecordIDWithDatabase]) {
 		var datasource = [DatabaseModifyDataSource]()
-
+		
 		// Split records to save to databases
 		for recordToSave in recordsToSave {
 			if let modifier = datasource.find(database: recordToSave.database) {
@@ -26,7 +26,7 @@ class PushOperationQueue: OperationQueue {
 				datasource.append(newModifier)
 			}
 		}
-
+		
 		// Split record ids to delete to databases
 		for idToDelete in recordIDsToDelete {
 			if let modifier = datasource.find(database: idToDelete.database) {
@@ -37,48 +37,46 @@ class PushOperationQueue: OperationQueue {
 				datasource.append(newModifier)
 			}
 		}
-
+		
 		// Perform
 		for databaseModifier in datasource {
 			addOperation(recordsToSave: databaseModifier.save, recordIDsToDelete: databaseModifier.delete, database: databaseModifier.database)
 		}
 	}
-
+	
     private func addOperation(recordsToSave: [CKRecord], recordIDsToDelete: [CKRecord.ID], database: CKDatabase) {
 		// Modify CKRecord Operation
 		let modifyOperation = CKModifyRecordsOperation(recordsToSave: recordsToSave, recordIDsToDelete: recordIDsToDelete)
 
 		modifyOperation.perRecordCompletionBlock = { record, error in
-			if let error = error as? CKError,
-                error.code != .serverRecordChanged
-            {
+			if let error = error {
+                if let ckError = error as? CKError, ckError.code == .serverRecordChanged { return }
 				self.errorBlock?(error)
 			} else {
                 self.saveBlock?(record)
 				self.removeCachedAssets(for: record)
 			}
 		}
-
+		
 		modifyOperation.modifyRecordsCompletionBlock = { _, _, error in
-			if let error = error as? CKError,
-                error.code != .partialFailure
-            {
+			if let error = error {
+                if let ckError = error as? CKError, ckError.code == .partialFailure { return }
 				self.errorBlock?(error)
 			}
 		}
-
+		        
 		modifyOperation.database = database
 
 		self.addOperation(modifyOperation)
 	}
-
+	
 	/// Remove locally cached assets prepared for uploading at CloudKit
 	private func removeCachedAssets(for record: CKRecord) {
 		for key in record.allKeys() {
 			guard let asset = record.value(forKey: key) as? CKAsset,
-                let fileURL = asset.fileURL
+                let url = asset.fileURL
                 else { continue }
-			try? FileManager.default.removeItem(at: fileURL)
+            try? FileManager.default.removeItem(at: url)
 		}
 	}
 
@@ -88,7 +86,7 @@ fileprivate class DatabaseModifyDataSource {
 	let database: CKDatabase
 	var save = [CKRecord]()
     var delete = [CKRecord.ID]()
-
+	
 	init(database: CKDatabase) {
 		self.database = database
 	}
@@ -99,7 +97,7 @@ extension Sequence where Iterator.Element == DatabaseModifyDataSource {
 		for element in self {
 			if element.database == database { return element }
 		}
-
+		
 		return nil
 	}
 }

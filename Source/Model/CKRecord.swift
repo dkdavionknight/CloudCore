@@ -9,21 +9,19 @@
 import CloudKit
 
 public extension CKRecord {
-    convenience init?(archivedData: Data) {
-        do {
-            let unarchiver = try NSKeyedUnarchiver(forReadingFrom: archivedData)
-            unarchiver.requiresSecureCoding = true
-            self.init(coder: unarchiver)
-        }
-        catch {
-            return nil
-        }
-    }
-
-    var encdodedSystemFields: Data {
-        let archiver = NSKeyedArchiver(requiringSecureCoding: true)
-        self.encodeSystemFields(with: archiver)
-        archiver.finishEncoding()
-        return archiver.encodedData
-    }
+	convenience init?(archivedData: Data) {
+		let unarchiver = NSKeyedUnarchiver(forReadingWith: archivedData)
+		unarchiver.requiresSecureCoding = true
+		self.init(coder: unarchiver)
+	}
+	
+	var encdodedSystemFields: Data {
+		let archivedData = NSMutableData()
+		let archiver = NSKeyedArchiver(forWritingWith: archivedData)
+		archiver.requiresSecureCoding = true
+		self.encodeSystemFields(with: archiver)
+		archiver.finishEncoding()
+		
+		return archivedData as Data
+	}
 }

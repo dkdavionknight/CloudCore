@@ -12,11 +12,11 @@ import Foundation
 class ErrorBlockProxy {
 	private(set) var wasError = false
 	var destination: ErrorBlock?
-
+	
 	init(destination: ErrorBlock?) {
 		self.destination = destination
 	}
-
+	
 	func send(error: Error?) {
 		if let error = error {
 			self.wasError = true

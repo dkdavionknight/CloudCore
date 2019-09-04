@@ -11,7 +11,7 @@ import CloudKit
 
 class CoreDataAttribute {
 	typealias Class = CoreDataAttribute
-
+	
 	let name: String
 	let value: Any?
 	let description: NSAttributeDescription
@@ -23,9 +23,9 @@ class CoreDataAttribute {
 			// it is not an attribute
 			return nil
 		}
-
+        
         self.description = description
-
+		
 		if value is NSNull {
 			self.value = nil
         } else if let attribute = entity.attributesByName[attributeName],
@@ -34,7 +34,7 @@ class CoreDataAttribute {
                 let transformer = ValueTransformer(forName: NSValueTransformerName(rawValue: transformerName)) {
                 self.value = transformer.reverseTransformedValue(value)
             } else {
-                self.value = try? NSKeyedArchiver.archivedData(withRootObject: value!, requiringSecureCoding: false)
+                self.value = NSKeyedArchiver.archivedData(withRootObject: value!)
             }
         } else {
             self.value = value
@@ -42,15 +42,15 @@ class CoreDataAttribute {
 
 		self.name = attributeName
 	}
-
+	
 	private static func attributeDescription(for lookupName: String, in entity: NSEntityDescription) -> NSAttributeDescription? {
 		for (name, description) in entity.attributesByName {
 			if lookupName == name { return description }
 		}
-
+		
 		return nil
 	}
-
+	
 	/// Return value in CloudKit-friendly format that is usable in CKRecord
 	/// - note: Possible long operation (if attribute has binary data asset maybe created)
 	func makeRecordValue() throws -> Any? {
@@ -59,7 +59,7 @@ class CoreDataAttribute {
 			guard let binaryData = self.value as? Data else {
 				return nil
 			}
-
+			
 			if binaryData.count > 1024*1024 || description.allowsExternalBinaryDataStorage {
 				return try Class.createAsset(for: binaryData)
 			} else {

@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import CoreData
 
 /// Delegate for framework that can be used for proccesses tracking and error handling.
 /// Maybe usefull to activate `UIApplication.networkActivityIndicatorVisible`.
@@ -27,7 +26,10 @@ public protocol CloudCoreDelegate: class {
 	
 	/// Tells the delegate that data has been uploaded to CloudKit
 	func didSyncToCloud()
-	
+
+    /// Tells the delegate that the store should be deleted
+    func purge()
+
 	// MARK: Error
 	
 	/// Tells the delegate that error has been occured, maybe called multiple times
@@ -37,7 +39,6 @@ public protocol CloudCoreDelegate: class {
 	///   - module: framework's module that throwed an error
 	func error(error: Error, module: Module?)
 
-    func purge(container: NSPersistentContainer)
 }
 
 public extension CloudCoreDelegate {
@@ -46,7 +47,7 @@ public extension CloudCoreDelegate {
 	func didSyncFromCloud() { }
 	func willSyncToCloud() { }
 	func didSyncToCloud() { }
+    func purge() { }
 	func error(error: Error, module: Module?) { }
-    func purge(container: NSPersistentContainer) { }
 	
 }

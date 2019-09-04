@@ -10,47 +10,47 @@ import Foundation
 import CoreData
 
 class PushAllLocalDataOperation: Operation {
-
+	
 	let managedObjectModel: NSManagedObjectModel
 	let parentContext: NSManagedObjectContext
-
+	
 	var errorBlock: ErrorBlock? {
 		didSet {
 			converter.errorBlock = errorBlock
 			pushOperationQueue.errorBlock = errorBlock
 		}
 	}
-
+	
 	private let converter = ObjectToRecordConverter()
 	private let pushOperationQueue = PushOperationQueue()
-
+	
 	init(parentContext: NSManagedObjectContext, managedObjectModel: NSManagedObjectModel) {
 		self.parentContext = parentContext
 		self.managedObjectModel = managedObjectModel
 	}
-
+	
 	override func main() {
 		super.main()
-
+		
 		CloudCore.delegate?.willSyncToCloud()
 		defer {
 			CloudCore.delegate?.didSyncToCloud()
 		}
-
+		
 		let childContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
         childContext.performAndWait {
             childContext.parent = parentContext
-
+            
             var allManagedObjects = Set<NSManagedObject>()
             for entity in managedObjectModel.cloudCoreEnabledEntities {
                 guard let entityName = entity.name else { continue }
                 let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
-
+                
                 do {
                     guard let fetchedObjects = try childContext.fetch(fetchRequest) as? [NSManagedObject] else {
                         continue
                     }
-
+                    
                     allManagedObjects.formUnion(fetchedObjects)
                 } catch {
                     errorBlock?(error)
@@ -71,10 +71,10 @@ class PushAllLocalDataOperation: Operation {
             }
         }
 	}
-
+	
 	override func cancel() {
 		pushOperationQueue.cancelAllOperations()
-
+		
 		super.cancel()
 	}
 
