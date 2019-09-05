@@ -7,10 +7,10 @@
 //
 
 import CloudKit
-import CoreData
 
 class PushOperationQueue: OperationQueue {
 	var errorBlock: ErrorBlock?
+    var saveBlock: ((CKRecord) -> Void)?
 	
 	/// Modify CloudKit database, operations will be created and added to operation queue.
 	func addOperations(recordsToSave: [RecordWithDatabase], recordIDsToDelete: [RecordIDWithDatabase]) {
@@ -47,18 +47,20 @@ class PushOperationQueue: OperationQueue {
     private func addOperation(recordsToSave: [CKRecord], recordIDsToDelete: [CKRecord.ID], database: CKDatabase) {
 		// Modify CKRecord Operation
 		let modifyOperation = CKModifyRecordsOperation(recordsToSave: recordsToSave, recordIDsToDelete: recordIDsToDelete)
-		modifyOperation.savePolicy = .changedKeys
-		
+
 		modifyOperation.perRecordCompletionBlock = { record, error in
 			if let error = error {
+                if let ckError = error as? CKError, ckError.code == .serverRecordChanged { return }
 				self.errorBlock?(error)
 			} else {
+                self.saveBlock?(record)
 				self.removeCachedAssets(for: record)
 			}
 		}
 		
 		modifyOperation.modifyRecordsCompletionBlock = { _, _, error in
 			if let error = error {
+                if let ckError = error as? CKError, ckError.code == .partialFailure { return }
 				self.errorBlock?(error)
 			}
 		}
@@ -71,10 +73,10 @@ class PushOperationQueue: OperationQueue {
 	/// Remove locally cached assets prepared for uploading at CloudKit
 	private func removeCachedAssets(for record: CKRecord) {
 		for key in record.allKeys() {
-			guard let asset = record.value(forKey: key) as? CKAsset else { continue }
-            if let url = asset.fileURL {
-                try? FileManager.default.removeItem(at: url)
-            }
+			guard let asset = record.value(forKey: key) as? CKAsset,
+                let url = asset.fileURL
+                else { continue }
+            try? FileManager.default.removeItem(at: url)
 		}
 	}
 

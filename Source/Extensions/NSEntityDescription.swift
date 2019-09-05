@@ -43,46 +43,42 @@ extension NSEntityDescription {
         }
         
         // Private Record Data
-        let privateRecordDataAttribute: String
-        if let recordDataUserInfoName = attributeNamesFromUserInfo.privateRecordData {
-            privateRecordDataAttribute = recordDataUserInfoName
+        let recordDataAttribute: String
+        if let recordDataUserInfoName = attributeNamesFromUserInfo.recordData {
+            recordDataAttribute = recordDataUserInfoName
         } else {
             // Last chance: try to find default attribute name in entity
-            if self.attributesByName.keys.contains(CloudCore.config.defaultAttributeNamePrivateRecordData) {
-                privateRecordDataAttribute = CloudCore.config.defaultAttributeNamePrivateRecordData
+            if self.attributesByName.keys.contains(CloudCore.config.defaultAttributeNameRecordData) {
+                recordDataAttribute = CloudCore.config.defaultAttributeNameRecordData
             } else {
                 return nil
             }
         }
         
-        // Public Record Data
-        let publicRecordDataAttribute: String
-        if let recordDataUserInfoName = attributeNamesFromUserInfo.publicRecordData {
-            publicRecordDataAttribute = recordDataUserInfoName
+        // Mark For Deletion
+        let markedForDeletionAttribute: String
+        if let markedForDeletionUserInfoName = attributeNamesFromUserInfo.markedForDeletion {
+            markedForDeletionAttribute = markedForDeletionUserInfoName
         } else {
-            // Last chance: try to find default attribute name in entity
-            if self.attributesByName.keys.contains(CloudCore.config.defaultAttributeNamePublicRecordData) {
-                publicRecordDataAttribute = CloudCore.config.defaultAttributeNamePublicRecordData
-            } else {
-                return nil
-            }
+            // Use default attribute name
+            markedForDeletionAttribute = CloudCore.config.defaultAttributeNameMarkedForDeletion
         }
-        
+
         return ServiceAttributeNames(entityName: entityName,
                                      scopes: attributeNamesFromUserInfo.scopes,
                                      recordName: recordNameAttribute,
                                      ownerName: ownerNameAttribute,
-                                     privateRecordData: privateRecordDataAttribute,
-                                     publicRecordData: publicRecordDataAttribute)
+                                     recordData: recordDataAttribute,
+                                     markedForDeletion: markedForDeletionAttribute)
 	}
 	
 	/// Parse data from User Info dictionary
-    private func parseAttributeNamesFromUserInfo() -> (scopes: [CKDatabase.Scope], recordName: String?, ownerName: String?, privateRecordData: String?, publicRecordData: String?) {
+    private func parseAttributeNamesFromUserInfo() -> (scopes: [CKDatabase.Scope], recordName: String?, ownerName: String?, recordData: String?, markedForDeletion: String?) {
         var scopes: [CKDatabase.Scope] = []
         var recordNameAttribute: String?
         var ownerNameAttribute: String?
-        var privateRecordDataAttribute: String?
-        var publicRecordDataAttribute: String?
+        var recordDataAttribute: String?
+        var markedForDeletionAttribute: String?
         
         func parse(_ attributeName: String, _ userInfo: [AnyHashable: Any]) {
             for (key, value) in userInfo {
@@ -93,8 +89,8 @@ extension NSEntityDescription {
                     switch value {
                     case ServiceAttributeNames.valueRecordName: recordNameAttribute = attributeName
                     case ServiceAttributeNames.valueOwnerName: ownerNameAttribute = attributeName
-                    case ServiceAttributeNames.valuePrivateRecordData: privateRecordDataAttribute = attributeName
-                    case ServiceAttributeNames.valuePublicRecordData: publicRecordDataAttribute = attributeName
+                    case ServiceAttributeNames.valueRecordData: recordDataAttribute = attributeName
+                    case ServiceAttributeNames.valueMarkedForDeletion: markedForDeletionAttribute = attributeName
                     default: continue
                     }
                 } else if key == ServiceAttributeNames.keyScopes {
@@ -123,7 +119,7 @@ extension NSEntityDescription {
 			parse(attributeName, userInfo)
 		}
 		
-		return (scopes, recordNameAttribute, ownerNameAttribute, privateRecordDataAttribute, publicRecordDataAttribute)
+		return (scopes, recordNameAttribute, ownerNameAttribute, recordDataAttribute, markedForDeletionAttribute)
 	}
 	
 }

@@ -12,7 +12,7 @@ import CloudKit
 
 /// Class responsible for taking action on Core Data changes
 class CoreDataObserver {
-	var container: NSPersistentContainer
+	let container: NSPersistentContainer
 	
 	let converter = ObjectToRecordConverter()
 	let pushOperationQueue = PushOperationQueue()
@@ -90,6 +90,11 @@ class CoreDataObserver {
         backgroundContext.name = cloudContextName
         
         let records = converter.processPendingOperations(in: backgroundContext)
+        pushOperationQueue.saveBlock = { record in
+            backgroundContext.performAndWait {
+                self.updateRecordData(for: record, context: backgroundContext)
+            }
+        }
         pushOperationQueue.errorBlock = {
             self.handle(error: $0, parentContext: backgroundContext)
             success = false
@@ -178,27 +183,31 @@ class CoreDataObserver {
                         case .update:
                             if let inserted = try? moc.existingObject(with: change.changedObjectID) {
                                 if let updatedProperties = change.updatedProperties {
-                                    let updatedPropertyNames: [String] = updatedProperties.map { (propertyDescription) in
-                                        return propertyDescription.name
-                                    }
+                                    let updatedPropertyNames: [String] = updatedProperties
+                                        .filter {
+                                            guard let description = $0 as? NSRelationshipDescription else { return true }
+                                            return !description.isToMany || description.isCloudCoreEnabled
+                                        }
+                                        .map { $0.name }
                                     inserted.updatedPropertyNames = updatedPropertyNames
                                 }
-                                updatedObject.insert(inserted)
+                                if !(inserted.updatedPropertyNames?.isEmpty ?? true) {
+                                    updatedObject.insert(inserted)
+                                }
                             }
-                            
+
                         case .delete:
-                            if change.tombstone != nil {
-                                if let privateRecordData = change.tombstone!["privateRecordData"] as? Data {
-                                    let ckRecord = CKRecord(archivedData: privateRecordData)
-                                    let database = ckRecord?.recordID.zoneID.ownerName == CKCurrentUserDefaultName ? CloudCore.config.container.privateCloudDatabase : CloudCore.config.container.sharedCloudDatabase
-                                    let recordIDWithDatabase = RecordIDWithDatabase((ckRecord?.recordID)!, database)
-                                    deletedRecordIDs.append(recordIDWithDatabase)
+                            if let recordData = change.tombstone?["recordData"] as? Data,
+                                let ckRecord = CKRecord(archivedData: recordData)
+                            {
+                                let database: CKDatabase
+                                switch ckRecord.recordID.zoneID {
+                                case CKRecordZone.default().zoneID: database = CloudCore.config.container.publicCloudDatabase
+                                case let zoneID where zoneID.ownerName == CKCurrentUserDefaultName: database = CloudCore.config.container.privateCloudDatabase
+                                default: database = CloudCore.config.container.sharedCloudDatabase
                                 }
-                                if let publicRecordData = change.tombstone!["publicRecordData"] as? Data {
-                                    let ckRecord = CKRecord(archivedData: publicRecordData)
-                                    let recordIDWithDatabase = RecordIDWithDatabase((ckRecord?.recordID)!, CloudCore.config.container.publicCloudDatabase)
-                                    deletedRecordIDs.append(recordIDWithDatabase)
-                                }
+                                let recordIDWithDatabase = RecordIDWithDatabase(ckRecord.recordID, database)
+                                deletedRecordIDs.append(recordIDWithDatabase)
                             }
                             
                         default:
@@ -222,10 +231,9 @@ class CoreDataObserver {
             
             container.performBackgroundTask { (moc) in
                 let key = "lastPersistentHistoryTokenKey"
-                let settings = UserDefaults.standard
-                var token: NSPersistentHistoryToken? = nil
-                if let data = settings.object(forKey: key) as? Data {
-                     token = NSKeyedUnarchiver.unarchiveObject(with: data) as? NSPersistentHistoryToken
+                var token: NSPersistentHistoryToken?
+                if let data = moc.persistentStoreCoordinator!.metadataValue(forKey: key) as? Data {
+                    token = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSPersistentHistoryToken.self, from: data)
                 }
                 let historyRequest = NSPersistentHistoryChangeRequest.fetchHistory(after: token)
                 do {
@@ -237,8 +245,9 @@ class CoreDataObserver {
                                 let deleteRequest = NSPersistentHistoryChangeRequest.deleteHistory(before: transaction)
                                 try moc.execute(deleteRequest)
                                 
-                                let data = NSKeyedArchiver.archivedData(withRootObject: transaction.token)
-                                settings.set(data, forKey: key)
+                                let data = try NSKeyedArchiver.archivedData(withRootObject: transaction.token, requiringSecureCoding: true)
+                                moc.persistentStoreCoordinator!.setMetadataValue(data, forKey: key)
+                                try moc.save()
                             } else {
                                 break
                             }
@@ -248,7 +257,8 @@ class CoreDataObserver {
                     let nserror = error as NSError
                     switch nserror.code {
                     case NSPersistentHistoryTokenExpiredError:
-                        settings.set(nil, forKey: key)
+                        moc.persistentStoreCoordinator!.setMetadataValue(nil, forKey: key)
+                        try? moc.save()
                     default:
                         fatalError("Unresolved error \(nserror), \(nserror.userInfo)")
                     }
@@ -256,7 +266,15 @@ class CoreDataObserver {
             }
         }
     }
-    
+
+    private func updateRecordData(for record: CKRecord, context: NSManagedObjectContext) {
+        guard let entity = container.managedObjectModel.entitiesByName[record.recordType],
+            let serviceAttributeNames = entity.serviceAttributeNames,
+            let object = try? context.fetchObject(for: record, recordNameKey: serviceAttributeNames.recordName)
+            else { return }
+        object.setValue(record.encdodedSystemFields, forKey: serviceAttributeNames.recordData)
+    }
+
 	private func handle(error: Error, parentContext: NSManagedObjectContext) {
 		guard let cloudError = error as? CKError else {
 			delegate?.error(error: error, module: .some(.pushToCloud))

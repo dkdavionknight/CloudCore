@@ -14,7 +14,7 @@ typealias RecordName = String
 typealias MissingReferences = [NSManagedObject: [AttributeName: [RecordName]]]
 
 /// Convert CKRecord to NSManagedObject and save it to parent context, thread-safe
-public class RecordToCoreDataOperation: AsynchronousOperation {
+public class RecordToCoreDataOperation: Operation {
 	let parentContext: NSManagedObjectContext
 	let record: CKRecord
 	var errorBlock: ErrorBlock?
@@ -41,8 +41,6 @@ public class RecordToCoreDataOperation: AsynchronousOperation {
             } catch {
                 self.errorBlock?(error)
             }
-            
-            self.state = .finished
         }
 	}
 	
@@ -78,6 +76,8 @@ public class RecordToCoreDataOperation: AsynchronousOperation {
 	///   - entityName: entity name of `object`
 	///   - recordDataAttributeName: attribute name containing recordData
 	private func fill(object: NSManagedObject, entityName: String, serviceAttributeNames: ServiceAttributeNames, context: NSManagedObjectContext) throws {
+        var notFoundRecordNamesForAttribute = [AttributeName: [RecordName]]()
+        
 		for key in record.allKeys() {
 			let recordValue = record.value(forKey: key)
 			
@@ -98,17 +98,17 @@ public class RecordToCoreDataOperation: AsynchronousOperation {
                 if object.entity.attributesByName[key] != nil || object.entity.relationshipsByName[key] != nil {
                     object.setValue(coreDataValue, forKey: key)
                 }
-                missingObjectsPerEntities[object] = ckAttribute.notFoundRecordNamesForAttribute
+                notFoundRecordNamesForAttribute.merge(ckAttribute.notFoundRecordNamesForAttribute) { $1 }
             }
 		}
-		
+
+        if !notFoundRecordNamesForAttribute.isEmpty {
+            missingObjectsPerEntities[object] = notFoundRecordNamesForAttribute
+        }
+
 		// Set system headers
         object.setValue(record.recordID.recordName, forKey: serviceAttributeNames.recordName)
         object.setValue(record.recordID.zoneID.ownerName, forKey: serviceAttributeNames.ownerName)
-        if record.recordID.zoneID == CKRecordZone.default().zoneID {
-            object.setValue(record.encdodedSystemFields, forKey: serviceAttributeNames.publicRecordData)
-        } else {
-            object.setValue(record.encdodedSystemFields, forKey: serviceAttributeNames.privateRecordData)
-        }
+        object.setValue(record.encdodedSystemFields, forKey: serviceAttributeNames.recordData)
 	}
 }

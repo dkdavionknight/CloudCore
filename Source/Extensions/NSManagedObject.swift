@@ -18,8 +18,7 @@ extension NSManagedObject {
 		guard let serviceAttributeNames = self.entity.serviceAttributeNames else {
 			throw CloudCoreError.missingServiceAttributes(entityName: self.entity.name)
 		}
-        let key = scope == .public ? serviceAttributeNames.publicRecordData : serviceAttributeNames.privateRecordData
-		guard let encodedRecordData = self.value(forKey: key) as? Data else { return nil }
+		guard let encodedRecordData = self.value(forKey: serviceAttributeNames.recordData) as? Data else { return nil }
 		
 		return CKRecord(archivedData: encodedRecordData)
 	}
@@ -47,14 +46,14 @@ extension NSManagedObject {
         if scope == .public {
             let publicRecordID = CKRecord.ID(recordName: recordName!)
             let publicRecord = CKRecord(recordType: entityName, recordID:publicRecordID)
-            self.setValue(publicRecord.encdodedSystemFields, forKey: serviceAttributeNames.publicRecordData)
+            self.setValue(publicRecord.encdodedSystemFields, forKey: serviceAttributeNames.recordData)
             
             aRecord = publicRecord
         } else {
             let zoneID = CKRecordZone.ID(zoneName: CloudCore.config.zoneName, ownerName: self.sharingOwnerName)
             let privateRecordID = CKRecord.ID(recordName: recordName!, zoneID: zoneID)
             let privateRecord = CKRecord(recordType: entityName, recordID: privateRecordID)
-            self.setValue(privateRecord.encdodedSystemFields, forKey: serviceAttributeNames.privateRecordData)
+            self.setValue(privateRecord.encdodedSystemFields, forKey: serviceAttributeNames.recordData)
             
             aRecord = privateRecord
         }

@@ -61,21 +61,23 @@ public struct CloudCoreConfig {
     /// Default value is `recordName`
     public var defaultAttributeNameOwnerName = "ownerName"
     
-    /// Default entity's attribute name for *Private Record Data* if User Info is not specified
+    /// Default entity's attribute name for *Record Data* if User Info is not specified
     ///
-    /// Default value is `privateRecordData`
-    public var defaultAttributeNamePrivateRecordData = "privateRecordData"
+    /// Default value is `recordData`
+    public var defaultAttributeNameRecordData = "recordData"
         
-    /// Default entity's attribute name for *Public Record Data* if User Info is not specified
+    /// Default entity's attribute name for *Marked For Deletion* if User Info is not specified
     ///
-    /// Default value is `publicRecordData`
-    public var defaultAttributeNamePublicRecordData = "publicRecordData"
-    
-	// MARK: User Defaults
-	
-	/// UserDefault's key to store `Tokens` object
-	///
-	/// Default value is `CloudCoreTokens`
-	public var userDefaultsKeyTokens = "CloudCoreTokens"
-	
+    /// Default value is `markedForDeletion`
+    public var defaultAttributeNameMarkedForDeletion = "markedForDeletion"
+
+    // MARK: Metadata
+
+    /// Metadata's key to store `Tokens` object
+    ///
+    /// Default value is `CloudCoreTokens`
+    public var metadataKeyTokens = "CloudCoreTokens"
+
+    public var isDeleting = false
+
 }

@@ -8,6 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		57505AB021A7591500D9CF8F /* PullResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57505AAF21A7591500D9CF8F /* PullResult.swift */; };
+		A711C20A2320F624009F7334 /* FetchShareRecordOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A711C2072320F624009F7334 /* FetchShareRecordOperation.swift */; };
+		A711C20B2320F624009F7334 /* LeaveShareOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A711C2082320F624009F7334 /* LeaveShareOperation.swift */; };
+		A711C20C2320F624009F7334 /* ActivateShareRootRecordOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A711C2092320F624009F7334 /* ActivateShareRootRecordOperation.swift */; };
+		A711C20E2320F6A0009F7334 /* NSManagedObjectContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = A711C20D2320F69F009F7334 /* NSManagedObjectContext.swift */; };
+		A711C2112320F6B4009F7334 /* NSRelationshipDescription.swift in Sources */ = {isa = PBXBuildFile; fileRef = A711C20F2320F6B3009F7334 /* NSRelationshipDescription.swift */; };
+		A711C2122320F6B4009F7334 /* NSPersistentStoreCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A711C2102320F6B3009F7334 /* NSPersistentStoreCoordinator.swift */; };
 		D9089D4A1FE14E57000FC60C /* SetupOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9089D491FE14E57000FC60C /* SetupOperation.swift */; };
 		D97465F81FE319930060EA66 /* CloudCoreDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D97465F71FE319930060EA66 /* CloudCoreDelegate.swift */; };
 		D97465FA1FE31A650060EA66 /* Module.swift in Sources */ = {isa = PBXBuildFile; fileRef = D97465F91FE31A650060EA66 /* Module.swift */; };
@@ -90,6 +96,12 @@
 		245F765CC7CBF0507158B4A9 /* Pods_CloudCoreTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_CloudCoreTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		57505AAF21A7591500D9CF8F /* PullResult.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PullResult.swift; sourceTree = "<group>"; };
 		8EAC4D8B1B0EF4ECE4BDA160 /* Pods_CloudCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_CloudCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		A711C2072320F624009F7334 /* FetchShareRecordOperation.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FetchShareRecordOperation.swift; sourceTree = "<group>"; };
+		A711C2082320F624009F7334 /* LeaveShareOperation.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LeaveShareOperation.swift; sourceTree = "<group>"; };
+		A711C2092320F624009F7334 /* ActivateShareRootRecordOperation.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ActivateShareRootRecordOperation.swift; sourceTree = "<group>"; };
+		A711C20D2320F69F009F7334 /* NSManagedObjectContext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NSManagedObjectContext.swift; sourceTree = "<group>"; };
+		A711C20F2320F6B3009F7334 /* NSRelationshipDescription.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NSRelationshipDescription.swift; sourceTree = "<group>"; };
+		A711C2102320F6B3009F7334 /* NSPersistentStoreCoordinator.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NSPersistentStoreCoordinator.swift; sourceTree = "<group>"; };
 		D5B2E89F1C3A780C00C0327D /* CloudCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CloudCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D5C6298B1C3A8BBD007F7B7C /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D9089D491FE14E57000FC60C /* SetupOperation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupOperation.swift; sourceTree = "<group>"; };
@@ -194,6 +206,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		A711C2062320F5EE009F7334 /* Share */ = {
+			isa = PBXGroup;
+			children = (
+				A711C2092320F624009F7334 /* ActivateShareRootRecordOperation.swift */,
+				A711C2072320F624009F7334 /* FetchShareRecordOperation.swift */,
+				A711C2082320F624009F7334 /* LeaveShareOperation.swift */,
+			);
+			path = Share;
+			sourceTree = "<group>";
+		};
 		D5B2E8951C3A780C00C0327D = {
 			isa = PBXGroup;
 			children = (
@@ -315,6 +337,7 @@
 				D9089D481FE14E4A000FC60C /* Setup */,
 				E2075FF31E4BB70D00E31F1F /* Pull */,
 				E2075FF21E4BB6F700E31F1F /* Push */,
+				A711C2062320F5EE009F7334 /* Share */,
 				E200D44C1E48E13200B707D4 /* CloudCore.swift */,
 				E2564BFE1E5061BC002E518B /* ErrorBlockProxy.swift */,
 			);
@@ -417,9 +440,12 @@
 		E29BB21F1E433FDA0020F5B6 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
-				D985DEAD1FE034A900236870 /* NSManagedObjectModel.swift */,
 				E2D390071E4A49350019BBCD /* NSEntityDescription.swift */,
 				E29BB2221E4346FF0020F5B6 /* NSManagedObject.swift */,
+				A711C20D2320F69F009F7334 /* NSManagedObjectContext.swift */,
+				D985DEAD1FE034A900236870 /* NSManagedObjectModel.swift */,
+				A711C2102320F6B3009F7334 /* NSPersistentStoreCoordinator.swift */,
+				A711C20F2320F6B3009F7334 /* NSRelationshipDescription.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -697,10 +723,12 @@
 				E2EE20071E4E6DCE0060F769 /* ServiceAttributeName.swift in Sources */,
 				D985DEAE1FE034A900236870 /* NSManagedObjectModel.swift in Sources */,
 				E23C478C1E48A404004310F9 /* PushOperationQueue.swift in Sources */,
+				A711C20A2320F624009F7334 /* FetchShareRecordOperation.swift in Sources */,
 				E2FA74441E769BF900C3489D /* RecordWithDatabase.swift in Sources */,
 				E22C40461E42956C009469A1 /* CoreDataObserver.swift in Sources */,
 				E2075FF91E4BBEAC00E31F1F /* AsynchronousOperation.swift in Sources */,
 				E24F44A61E4595B900F78819 /* CoreDataRelationship.swift in Sources */,
+				A711C2122320F6B4009F7334 /* NSPersistentStoreCoordinator.swift in Sources */,
 				D9089D4A1FE14E57000FC60C /* SetupOperation.swift in Sources */,
 				D97465FA1FE31A650060EA66 /* Module.swift in Sources */,
 				57505AB021A7591500D9CF8F /* PullResult.swift in Sources */,
@@ -708,16 +736,20 @@
 				E2E296CA1E49DA0800E7D6ED /* Tokens.swift in Sources */,
 				E2075FFF1E4BCD7E00E31F1F /* ObjectToRecordOperation.swift in Sources */,
 				E2564BFF1E5061BC002E518B /* ErrorBlockProxy.swift in Sources */,
+				A711C2112320F6B4009F7334 /* NSRelationshipDescription.swift in Sources */,
 				D985DEA41FE026D400236870 /* CreateCloudCoreZoneOperation.swift in Sources */,
 				D985DEAB1FE0335800236870 /* PushAllLocalDataOperation.swift in Sources */,
 				E2C02A0E1E4C99AD001B2871 /* ObjectToRecordConverter.swift in Sources */,
 				D985DE9D1FDFF9D400236870 /* PurgeLocalDatabaseOperation.swift in Sources */,
+				A711C20E2320F6A0009F7334 /* NSManagedObjectContext.swift in Sources */,
 				E2FA74481E769D9400C3489D /* RecordIDWithDatabase.swift in Sources */,
 				E29BB2211E4344E80020F5B6 /* CKRecord.swift in Sources */,
 				E2D390081E4A49350019BBCD /* NSEntityDescription.swift in Sources */,
 				E29BB2231E4346FF0020F5B6 /* NSManagedObject.swift in Sources */,
 				E200D44D1E48E13200B707D4 /* CloudCore.swift in Sources */,
+				A711C20C2320F624009F7334 /* ActivateShareRootRecordOperation.swift in Sources */,
 				D985DEA81FE0292000236870 /* SubscribeOperation.swift in Sources */,
+				A711C20B2320F624009F7334 /* LeaveShareOperation.swift in Sources */,
 				E29BB21C1E43381D0020F5B6 /* CloudCoreError.swift in Sources */,
 				E22A53DA1E4A8743009286C0 /* CloudKitAttribute.swift in Sources */,
 			);

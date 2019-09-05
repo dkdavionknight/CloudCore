@@ -17,21 +17,21 @@ struct ServiceAttributeNames {
 	
     static let valueRecordName = "recordName"
     static let valueOwnerName = "ownerName"
-    static let valuePrivateRecordData = "privateRecordData"
-    static let valuePublicRecordData = "publicRecordData"
-    
+    static let valueRecordData = "recordData"
+    static let valueMarkedForDeletion = "markedForDeletion"
+
 	let entityName: String
     
     let scopes: [CKDatabase.Scope]
     
     let recordName: String
     let ownerName: String
-    let privateRecordData: String
-    let publicRecordData: String
-    
+    let recordData: String
+    let markedForDeletion: String
+
     func contains(_ attributeName: String) -> Bool {
         switch attributeName {
-        case recordName, ownerName, privateRecordData, publicRecordData:
+        case recordName, ownerName, recordData, markedForDeletion:
             return true
         default:
             return false
