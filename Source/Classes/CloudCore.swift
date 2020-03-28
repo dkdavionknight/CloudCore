@@ -98,9 +98,9 @@ open class CloudCore {
 
             // Listen for local changes
             let observer = CoreDataObserver(container: container)
-            observer.delegate = self.delegate
+            observer.delegate = delegate
             observer.start()
-            self.coreDataObserver = observer
+            coreDataObserver = observer
         }
         coreDataOperation.addDependency(createZoneOperation)
         queue.addOperation(coreDataOperation)
@@ -114,11 +114,8 @@ open class CloudCore {
 		#endif
 		
 		// Fetch updated data (e.g. push notifications weren't received)
-        let updateFromCloudOperation = PullOperation(persistentContainer: container)
-		updateFromCloudOperation.errorBlock = {
-			self.delegate?.error(error: $0, module: .some(.pullFromCloud))
-		}
-		
+        let updateFromCloudOperation = makePullOperation(persistentContainer: container)
+
 		#if !os(watchOS)
 		updateFromCloudOperation.addDependency(subscribeOperation)
 		#endif
@@ -135,7 +132,19 @@ open class CloudCore {
 		
 		// FIXME: unsubscribe
 	}
-	
+
+    public static func delete(completionHandler: @escaping (Error?) -> Void) {
+        let recordZoneOperation = CKModifyRecordZonesOperation(recordZoneIDsToDelete: [config.privateZoneID()])
+        recordZoneOperation.qualityOfService = .userInteractive
+        recordZoneOperation.modifyRecordZonesCompletionBlock = {
+            if $2 == nil {
+                CloudCore.config.isDeleting = true
+            }
+            completionHandler($2)
+        }
+        config.container.privateCloudDatabase.add(recordZoneOperation)
+    }
+
 	// MARK: Fetchers
 	
 	/** Fetch changes from one CloudKit database and save it to CoreData from `didReceiveRemoteNotification` method.
@@ -148,41 +157,47 @@ open class CloudCore {
 		- error: block will be called every time when error occurs during process
 		- completion: `PullResult` enumeration with results of operation
 	*/
-	public static func pull(using userInfo: NotificationUserInfo, to container: NSPersistentContainer, error: ErrorBlock?, completion: @escaping (_ fetchResult: PullResult) -> Void) {
-		guard let notification = CKNotification(fromRemoteNotificationDictionary: userInfo), let cloudDatabase = self.database(for: notification) else {
-			completion(.noData)
-			return
-		}
-        
-		DispatchQueue.global(qos: .utility).async {
-			let errorProxy = ErrorBlockProxy(destination: error)
-			let operation = PullOperation(from: [cloudDatabase], persistentContainer: container)
-			operation.errorBlock = { errorProxy.send(error: $0) }
-			operation.start()
-			
-			if errorProxy.wasError {
-				completion(PullResult.failed)
-			} else {
-				completion(PullResult.newData)
-			}
-		}
-	}
+    public static func pull(using userInfo: NotificationUserInfo, to container: NSPersistentContainer, error: ErrorBlock?, completion: @escaping (_ fetchResult: PullResult) -> Void) {
+        print("### pull \(String(describing: userInfo))")
+        guard let notification = CKNotification(fromRemoteNotificationDictionary: userInfo),
+            let _ = self.database(for: notification)
+            else {
+                completion(.noData)
+                return
+            }
 
-	/** Fetch changes from all CloudKit databases and save it to Core Data
+        DispatchQueue.global(qos: .utility).async {
+            if isQueueContainsPullOperation() {
+                print("### PullOperation already running")
+            }
+            else {
+                let operation = makePullOperation(persistentContainer: container)
+                queue.addOperation(operation)
+                print("### PullOperation started from notification")
+            }
+            completion(PullResult.newData)
+        }
+    }
 
-	- Parameters:
-		- container: `NSPersistentContainer` that will be used to save fetched data
-		- error: block will be called every time when error occurs during process
-		- completion: `PullResult` enumeration with results of operation
-	*/
-	public static func pull(to container: NSPersistentContainer, error: ErrorBlock?, completion: (() -> Void)?) {
-        let operation = PullOperation(persistentContainer: container)
-		operation.errorBlock = error
-		operation.completionBlock = completion
+    /** Fetch changes from all CloudKit databases and save it to Core Data
 
-		queue.addOperation(operation)
-	}
-	
+     - Parameters:
+         - container: `NSPersistentContainer` that will be used to save fetched data
+         - error: block will be called every time when error occurs during process
+         - completion: `PullResult` enumeration with results of operation
+    */
+    public static func pull(to container: NSPersistentContainer, completion: (() -> Void)?) {
+        print("### pull(to container: NSPersistentContainer, error: ErrorBlock?, completion: (() -> Void)?)")
+        if isQueueContainsPullOperation() {
+            print("### PullOperation already running")
+        }
+        else {
+            let operation = makePullOperation(persistentContainer: container)
+            operation.completionBlock = completion
+            queue.addOperation(operation)
+        }
+    }
+
 	/** Check if notification is CloudKit notification containing CloudCore data
 
 	 - Parameter userInfo: userInfo of notification
@@ -200,32 +215,117 @@ open class CloudCore {
 		switch id {
 		case config.subscriptionIDForPrivateDB: return config.container.privateCloudDatabase
 		case config.subscriptionIDForSharedDB: return config.container.sharedCloudDatabase
-		case _ where id.hasPrefix(config.publicSubscriptionIDPrefix): return config.container.publicCloudDatabase
 		default: return nil
 		}
 	}
 
-	static private func handle(subscriptionError: Error, container: NSPersistentContainer) {
-		guard let cloudError = subscriptionError as? CKError, let partialErrorValues = cloudError.partialErrorsByItemID?.values else {
-			delegate?.error(error: subscriptionError, module: nil)
-			return
-		}
-		
-		// Try to find "Zone Not Found" in partial errors
-		for subError in partialErrorValues {
-			guard let subError = subError as? CKError else { continue }
-			
-			if case .zoneNotFound = subError.code {
-				// Zone wasn't found, we need to create it
-				self.queue.cancelAllOperations()
+    // MARK: Share
+
+    public static func fetchShare(for object: NSManagedObject, completionHandler: @escaping ((CKRecord?, CKShare?)?, Error?) -> Void) {
+        let recordID = try! object.restoreRecordWithSystemFields(for: .private)!.recordID
+        let database = recordID.zoneID.ownerName == CKCurrentUserDefaultName ? config.container.privateCloudDatabase :
+            config.container.sharedCloudDatabase
+        let operation = FetchShareRecordOperation(recordID: recordID, database: database)
+        operation.completionBlock = { [unowned operation] in
+            if let error = operation.error {
+                completionHandler(nil, error)
+            }
+            else {
+                completionHandler((operation.record, operation.share), nil)
+            }
+        }
+        queue.addOperation(operation)
+    }
+
+    public static func acceptShare(shareMetadata: CKShare.Metadata, completionHandler: @escaping (Error?) -> Void) {
+        let acceptShareOperation: CKAcceptSharesOperation = CKAcceptSharesOperation(shareMetadatas: [shareMetadata])
+        acceptShareOperation.qualityOfService = .userInteractive
+        acceptShareOperation.acceptSharesCompletionBlock = completionHandler
+        config.container.add(acceptShareOperation)
+    }
+
+    public static func stopShare(object: NSManagedObject, completionHandler: @escaping (Error?) -> Void) {
+        let objectID = object.objectID
+        coreDataObserver!.container.performBackgroundTask { context in
+            let object = context.object(with: objectID)
+            object.setValue(true, forKey: config.defaultAttributeNameMarkedForDeletion)
+            var localError: Error?
+            do {
+                try context.save()
+            }
+            catch {
+                localError = error
+            }
+            OperationQueue.main.addOperation {
+                completionHandler(localError)
+            }
+        }
+    }
+
+    public static func leaveShare(object: NSManagedObject, completionHandler: @escaping (Error?) -> Void) {
+        let recordID = try! object.restoreRecordWithSystemFields(for: .private)!.recordID
+        let database = recordID.zoneID.ownerName == CKCurrentUserDefaultName ? config.container.privateCloudDatabase :
+            config.container.sharedCloudDatabase
+        let leaveShareOperation = LeaveShareOperation(recordID: recordID, database: database)
+        leaveShareOperation.completionBlock = { [unowned leaveShareOperation] in
+            guard !leaveShareOperation.isCancelled || leaveShareOperation.error != nil
+                else { completionHandler(leaveShareOperation.error); return }
+            stopShare(object: object, completionHandler: completionHandler)
+        }
+        queue.addOperation(leaveShareOperation)
+    }
+
+    static private func handle(subscriptionError: Error, container: NSPersistentContainer) {
+        guard let cloudError = subscriptionError as? CKError, let partialErrorValues = cloudError.partialErrorsByItemID?.values else {
+            delegate?.error(error: subscriptionError, module: nil)
+            return
+        }
+
+        // Try to find "Zone Not Found" in partial errors
+        for subError in partialErrorValues {
+            guard let subError = subError as? CKError else { continue }
+
+            if case .zoneNotFound = subError.code {
+                // Zone wasn't found, we need to create it
+                self.queue.cancelAllOperations()
                 let setupOperation = SetupOperation(container: container, uploadAllData: !(coreDataObserver?.usePersistentHistoryForPush)!)
-				self.queue.addOperation(setupOperation)
-				
-				return
-			}
-		}
-		
-		delegate?.error(error: subscriptionError, module: nil)
-	}
+                self.queue.addOperation(setupOperation)
+
+                return
+            }
+        }
+
+        delegate?.error(error: subscriptionError, module: nil)
+    }
+
+    static private func handle(pullError: Error, container: NSPersistentContainer) {
+        guard let cloudError = pullError as? CKError else {
+            delegate?.error(error: pullError, module: .some(.pullFromCloud))
+            return
+        }
+
+        switch cloudError.code {
+        // User purged cloud database, we need to delete local cache (according Apple Guidelines)
+        // Or our token is expired, we need to refetch everything again
+        case .userDeletedZone, .changeTokenExpired: purge(container: container)
+        default: delegate?.error(error: cloudError, module: .some(.pullFromCloud))
+        }
+    }
+
+    static private func purge(container: NSPersistentContainer) {
+        disable()
+        delegate?.purge(container: container)
+    }
+
+    static private func makePullOperation(persistentContainer container: NSPersistentContainer) -> PullOperation {
+        let operation = PullOperation(persistentContainer: container)
+        operation.errorBlock = { handle(pullError: $0, container: container) }
+        operation.purgeBlock = { purge(container: container) }
+        return operation
+    }
+
+    static private func isQueueContainsPullOperation() -> Bool {
+        return queue.operations.contains(where: { $0 is PullOperation })
+    }
 
 }
